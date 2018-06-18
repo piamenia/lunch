@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="member">
+	<!-- email을 가지고 email 하나를 찾아오는 sql -->
+	<select id="emailcheck" parameterType="java.lang.String" resultType="java.lang.String">
+		select email
+		from member
+		where email=#{email}
+	</select>
+	<!-- membercode를 가지고 membercode 하나를 찾아오는 sql -->
+	<select id="membercodecheck" parameterType="java.lang.String" resultType="java.lang.String">
+		select membercode
+		from member
+		where membercode = #{membercode}
+	</select>
+	<!-- 회원정보 삽입 sql -->
+	<insert id="insert" parameterType="Member">
+		insert into member(email, pw, nickname, membercode)
+		values(#{email}, #{pw}, #{nickname}, #{membercode})
+	</insert>
+	<!-- 로그인처리 sql: email을 가지고 데이터1개 찾아오기 -->
+	<select id="getMember" parameterType="java.lang.String" resultType="Member">
+		select *
+		from member
+		where email=#{email}
+	</select>
+	<!-- 회원정보 수정 -->
+	<update id="update" parameterType="Member">
+		update member
+		set nickname=#{nickname}, pw=#{pw}
+		where email = #{email}
+	</update>
+</mapper>

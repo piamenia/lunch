@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="restaurant">
+	<!-- 전체 식당 리스트 -->
+	<select id="list" parameterType="java.lang.String" resultType="Restaurant">
+		select * from restaurant
+		where membercode = #{membercode}
+	</select>
+	<!-- 식당 등록 -->
+	<insert id="register" parameterType="Restaurant">
+		insert into restaurant (rstcode, rstname, foodstyle, distance, tasty, price, totalscore, description, membercode)
+		values(rstcodeseq.nextval, #{rstname}, #{foodstyle}, #{distance}, #{tasty}, #{price}, #{totalscore}, #{description}, #{membercode})
+	</insert>
+	<!-- 조건 검색 -->
+	<select id="select" parameterType="Restaurant" resultType="Restaurant">
+		select * from restaurant
+		where membercode = #{membercode} and foodstyle = #{foodstyle} and distance >= #{distance} and tasty >= #{tasty} and price >= #{price}
+	</select>
+</mapper>
