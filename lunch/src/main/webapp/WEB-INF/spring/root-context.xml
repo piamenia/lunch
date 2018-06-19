@@ -6,8 +6,8 @@
 	<!-- DB 연동 -->
 	<bean class="org.springframework.jdbc.datasource.DriverManagerDataSource" id="dataSource">
 		<property value="oracle.jdbc.driver.OracleDriver" name="driverClassName" />
-		<property value="jdbc:oracle:thin:@182.222.11.113:1521:xe" name="url" />
-		<!-- <property value="jdbc:oracle:thin:@192.168.219.2:1521:xe" name="url" /> -->
+		<!-- <property value="jdbc:oracle:thin:@182.222.11.113:1521:xe" name="url" /> -->
+		<property value="jdbc:oracle:thin:@192.168.219.2:1521:xe" name="url" />
 		<property value="jaehoon" name="username" />
 		<property value="jaehoon" name="password" />
 	</bean>
