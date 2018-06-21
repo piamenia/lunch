@@ -1,14 +1,18 @@
 package kr.co.lunch.service;
 
 import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMessage.RecipientType;
+import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 
 import org.json.JSONArray;
@@ -244,8 +248,8 @@ public class MemberServiceImpl implements MemberService {
 				+ "<br>"
 				+ "반드시 비밀번호를 다시 변경해서 사용하세요."
 				+ "<br>"
-				+ "<a href=\"http://192.168.0.218:8989/lunch/member/update\">비밀번호 변경하러 가기</a>";
-//				+ "<a href=\"http://182.222.11.113:8080/lunch/member/update\">비밀번호 변경하러 가기</a>";
+//				+ "<a href=\"http://127.0.0.1:8989/lunch/member/update\">비밀번호 변경하러 가기</a>";
+				+ "<a href=\"http://182.222.11.113:8080/lunch/member/update\">비밀번호 변경하러 가기</a>";
 		
 		try {
 			// 매일보내기 객체
@@ -278,5 +282,34 @@ public class MemberServiceImpl implements MemberService {
 			result = true;
 		};
 		return result;
+	}
+
+	@Autowired
+	private ServletContext servletContext;
+	
+	@Override
+	public Map<String, Object> loginlog() {
+		Map<String, Object> map = new HashMap<>();
+		try {
+			// 로그파일 읽기
+			BufferedReader br = new BufferedReader(new FileReader(servletContext.getRealPath("/resources/login_log.txt")));
+			while(true) {
+				String line = br.readLine();
+				if(line == null) {
+					break;
+				}
+				String[] ar = line.split(" ");
+				String nickname = ar[0];
+				if(map.get(nickname)==null) {
+					map.put(nickname, 1);
+				}else {
+					map.put(nickname, (int)map.get(nickname)+1);
+				}
+			}
+		} catch(Exception e) {
+			System.out.println(e.getMessage());
+			e.printStackTrace();
+		}
+		return map;
 	}
 }

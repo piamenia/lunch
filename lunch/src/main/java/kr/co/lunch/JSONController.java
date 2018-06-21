@@ -23,8 +23,6 @@ public class JSONController {
 	@Autowired
 	private MemberService memberService;
 	
-	
-	
 	// 이메일 중복체크 요청을 처리
 	@RequestMapping(value="member/emailcheck", method=RequestMethod.GET)
 	public Map<String, Object> emailChech(HttpServletRequest request, Model modell){
@@ -83,5 +81,10 @@ public class JSONController {
 		Map<String, Object> map = new HashMap<>();
 		map.put("result", result);
 		return map;
+	}
+	
+	@RequestMapping(value="loginlog", method=RequestMethod.GET)
+	public Map<String, Object> loginlog(){
+		return memberService.loginlog();
 	}
 }

@@ -1,5 +1,7 @@
 package kr.co.lunch.service;
 
+import java.util.Map;
+
 import javax.servlet.http.HttpServletRequest;
 
 import kr.co.lunch.domain.Member;
@@ -13,4 +15,5 @@ public interface MemberService {
 	public boolean update(HttpServletRequest request);
 	public boolean findpw(HttpServletRequest request);
 	public boolean codecheck(HttpServletRequest request);
+	public Map<String, Object> loginlog();
 }
