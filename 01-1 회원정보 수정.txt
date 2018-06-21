@@ -1,0 +1,268 @@
+회원정보 수정
+
+	header.jsp 파일에 회원정보 링크 추가
+		<li role="presentation" style="float:right"><a href="${pageContext.request.contextPath}/member/update">회원정보 수정</a></li>
+		
+	MemberController에 member/update GET 요청 처리 메소드
+		@RequestMapping(value="member/update", method=RequestMethod.GET)
+		public String update(HttpServletRequest request) {
+			return "member/update";
+		}
+		
+	views/member/update.jsp 파일 생성
+		register.jsp 파일을 참고
+		기존 비밀번호를 먼저 ajax로 확인하고 바뀌는 데이터를 업데이트
+		
+		<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+		<%@ include file="../include/header.jsp" %>
+		<div class="container">
+			<div class="row">
+				<div class="col-md-4"></div>
+				<div class="col-md-4">
+					<div class="login-box well">
+						<form accept-charset="UTF-8" role="form" id="registerform" method="post" onsubmit="return check()">
+							<legend>회원 정보 수정</legend>
+							<div style='color: red'>${msg}</div>
+							<div class="form-group">
+								<label for="email">이메일</label>
+								<input type="email" name="email" id="email" class="form-control"
+								value="${member.email }" readonly="readonly"/>
+							</div>
+							<div class="form-group">
+								<label for="pw">비밀번호</label>
+								<input type="password" name="pw" id="pw"
+								class="form-control" placeholder="기존 비밀번호"/>
+							</div>
+							<div class="form-group">
+								<input type="password" name="newpw" id="newpw"
+								class="form-control" 
+								placeholder="새 비밀번호"/>
+								<input type="password" id="pwconfirm"
+								class="form-control"  
+								placeholder="비밀번호 확인"/>
+								<div id="pwdiv"></div>
+							</div>
+							<div class="form-group">
+								<label for="nickname">별명</label>
+								<input type="text" name="nickname" id="nickname"
+								class="form-control" value="${member.nickname }" />
+								<div id="nicknamediv"></div>
+							</div>
+							<div class="form-group">
+								<input type="submit" value="회원정보 수정" class="btn btn-warning btn-block m-t-md" />
+								<input type="button" value="메인으로" class="btn btn-success btn-block m-t-md"
+								onclick="javascript:window.location='../'">
+							</div>
+							<script>
+								document.getElementById("pw").focus();
+							</script>
+						</form>
+					</div>
+				</div>
+				<div class="col-md-4"></div>
+			</div>
+		</div>
+		<script>
+
+		//form에서 submit 했을 때 호출되는 함수
+		//false를 리턴하면 서버로 전송되지 않음
+		function check(){
+			// 기존비밀번호가 맞지 않으면 전송하지 않음
+			pw = document.getElementById("pw").value;
+			$.ajax({
+				url:"pwcheck",
+				data: {
+					"pw" : pw,
+					"email" : "${member.email}"
+				},
+				dataType : "json",
+				success : function(data){
+					if(data.result == false){
+						document.getElementById("pw").value = "";
+						pwdiv.style.color = 'red';
+						pwdiv.innerHTML = "기존 비밀번호가 틀렸습니다!";
+						document.getElementById("pw").focus();
+						return false;
+					}
+				}
+			});
+			
+			// 비밀번호에 입력한 값과 비밀번호 확인 란에 입력한 값이 일치하지 않으면 전송하지 않음
+			newpw = document.getElementById("newpw").value;
+			pwconfirm = document.getElementById("pwconfirm").value;
+			pwdiv = document.getElementById("pwdiv");
+			if(newpw != pwconfirm){
+				document.getElementById("newpw").value = "";
+				document.getElementById("pwconfirm").value = "";
+				pwdiv.style.color = 'red';
+				pwdiv.innerHTML = "비밀번호가 일치하지 않습니다!";
+				document.getElementById("newpw").focus();
+				return false;
+			}
+			// 비밀번호는 숫자, 영문자, 특수문자 1개이상으로 8자 이상
+			// 정규식 이용
+			p1 = /[0-9]/;
+			p2 = /[a-zA-Z]/;
+			p3 = /[~!@#$%^&*();:.]/;
+			
+			if(!p1.test(newpw) || !p2.test(newpw) || !p3.test(newpw) || newpw.length<8){
+				document.getElementById("newpw").value = "";
+				document.getElementById("pwconfirm").value = "";
+				pwdiv.style.color = 'red';
+				pwdiv.innerHTML = 
+					"비밀번호는 8자 이상이어야 하고, 숫자, 영문자, 특수문자를 포함해야합니다."
+					+"<br>사용 가능한 특수문자: ~!@#$%^&*();:.";
+				document.getElementById("newpw").focus();
+				return false;
+			}
+			
+			// 닉네임은 2자 이상 한글, 영문자, 숫자로 구성
+			nickname = document.getElementById("nickname").value;
+			nicknamediv = document.getElementById("nicknamediv"); 
+			n = /[0-9a-zA-Z가-힣]/;
+			if(!n.test(nickname) || nickname.length<2){
+				document.getElementById("nickname").focus();
+				nicknamediv.style.color="red";
+				nicknamediv.innerHTML =
+					"닉네임은 2자 이상이어야하고<br>한글, 영문자, 숫자만 사용할 수 있습니다.";
+				return false;
+			}
+		}
+		</script>
+		<%@ include file="../include/footer.jsp" %>
+		
+	기존 비밀번호 확인하기
+		로그인 관련 sql과 메소드를 활용
+		
+		member.xml 파일의 로그인 sql의 id를 getMember로 변경
+			<select id="getMember" parameterType="java.lang.String" resultType="Member">
+				select *
+				from member
+				where email=#{email}
+			</select>
+			
+		MemberDao의 로그인메소드도 이름을 변경
+			// 데이터 하나 찾아오는 메소드
+			public Member getMember(String email) {
+				return sqlSession.selectOne("member.getMember", email);
+			}
+		
+		MemberService 인터페이스에 비밀번호확인 메소드
+			public boolean pwchech(HttpServletRequest request);
+		MemberServiceImpl에서 구현
+			@Override
+			public boolean pwchech(HttpServletRequest request) {
+				boolean result = false;
+				
+				String email = request.getParameter("email");
+				String pw = request.getParameter("pw");
+				
+				Member member = memberDao.getMember(email);
+				if(member != null) {
+					// 비밀번호 비교
+					if(BCrypt.checkpw(pw, member.getPw())){
+						// 비밀번호가 맞다면 true를 리턴
+						result = true;
+					}else {
+						// 비밀번호가 틀렸다면 false를 리턴
+					}
+				}
+				return result;
+			}
+			
+		JSONController에서 member/pwcheck 요청 처리 메소드
+			@RequestMapping(value="member/pwcheck", method=RequestMethod.GET)
+			public Map<String, Object> pwcheck(HttpServletRequest request, Model model){
+				boolean result = memberService.pwchech(request);
+				Map<String, Object> map = new HashMap<>();
+				map.put("result", result);
+				return map;
+			}
+			
+	member.xml 파일에 회원정보 수정 sql
+		<update id="update" parameterType="Member">
+			update member
+			set nickname=#{nickname}, pw=#{pw}
+			where email = #{email}
+		</update>
+		
+	MemberDao 클래스에 회원정보수정 메소드
+		public void update(Member member) {
+			sqlSession.update("member.update", member);
+		}
+			
+	MemberService 인터페이스에 회원정보 수정 메소드
+		public void update(HttpServletRequest request);
+		
+	MemberServiceImpl 클래스에서 구현
+		@Override
+		public void update(HttpServletRequest request) {
+			boolean result = false;
+			
+			// 파라미터 읽기
+			String email = request.getParameter("email");
+			String nickname = request.getParameter("nickname");
+			String pw = request.getParameter("pw");
+			
+			// Dao의 파라미터 만들기
+			Member member = new Member();
+			// 패스워드는 암호화해서 저장
+			member.setEmail(email);
+			member.setNickname(nickname);
+			member.setPw(BCrypt.hashpw(pw, BCrypt.gensalt(10)));
+		
+			//Dao의 메소드 호출
+			memberDao.update(member);
+		}
+		
+	MemberController에 member/update POST 요청 처리 메소드
+		@RequestMapping(value="member/update", method=RequestMethod.POST)
+		public String updatePost(HttpServletRequest request, RedirectAttributes attr) {
+			memberService.update(request);
+			attr.addFlashAttribute("msg", "회원정보가 수정되었습니다.");
+			return "redirect:../";
+		}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

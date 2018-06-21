@@ -1,0 +1,494 @@
+댓글 기능
+	ajax 이용
+	
+	댓글 테이블
+		-- reply 게시판
+		create table reply(
+		rpcode number(10) primary key,
+		rptext varchar2(500),
+		email varchar2(50) references member(email) on delete set null,
+		nickname varchar2(30),
+		bdcode number(5) references board(bdcode) on delete cascade,
+		regdate date default sysdate
+		);
+		
+	rpcode를 생성할 시퀀스
+		create sequence rpcodeseq;
+	
+	댓글테이블을 표현할 VO 클래스
+		package kr.co.lunch.domain;
+
+		public class Reply {
+			private int rpcode, bdcode;
+			private String rptext, email, nickname, regdate;
+			public int getRpcode() {
+				return rpcode;
+			}
+			public void setRpcode(int rpcode) {
+				this.rpcode = rpcode;
+			}
+			public int getBdcode() {
+				return bdcode;
+			}
+			public void setBdcode(int bdcode) {
+				this.bdcode = bdcode;
+			}
+			public String getRptext() {
+				return rptext;
+			}
+			public void setRptext(String rptext) {
+				this.rptext = rptext;
+			}
+			public String getEmail() {
+				return email;
+			}
+			public void setEmail(String email) {
+				this.email = email;
+			}
+			public String getNickname() {
+				return nickname;
+			}
+			public void setNickname(String nickname) {
+				this.nickname = nickname;
+			}
+			public String getRegdate() {
+				return regdate;
+			}
+			public void setRegdate(String regdate) {
+				this.regdate = regdate;
+			}
+			@Override
+			public String toString() {
+				return "Reply [rpcode=" + rpcode + ", bdcode=" + bdcode + ", rptext=" + rptext + ", email=" + email
+						+ ", nickname=" + nickname + ", regdate=" + regdate + "]";
+			}
+			
+		}
+		
+	댓글테이블에 sql작업을 수행할 mapper파일
+		src/main/resources/mybatis.mappers/reply.xml
+			<?xml version="1.0" encoding="UTF-8"?>
+			<!DOCTYPE mapper
+			PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+			"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+			<mapper namespace="reply">
+			</mapper>
+			
+	댓글테이블에 작업을 수행할 Dao 클래스
+		package kr.co.lunch.dao;
+
+		import org.apache.ibatis.session.SqlSession;
+		import org.springframework.beans.factory.annotation.Autowired;
+		import org.springframework.stereotype.Repository;
+
+		@Repository
+		public class ReplyDao {
+			@Autowired
+			private SqlSession sqlSession;
+		}
+		
+	댓글관련 요청을 처리할 메소드의 원형을 소유한 ReplyService 인터페이스
+		kr.co.lunch.service.ReplyService
+		
+	ReplyService를 구현하는 ReplyServiceImpl 클래스
+		package kr.co.lunch.service;
+
+		import org.springframework.beans.factory.annotation.Autowired;
+		import org.springframework.stereotype.Service;
+
+		import kr.co.lunch.dao.ReplyDao;
+
+		@Service
+		public class ReplyServiceImpl implements ReplyService {
+			@Autowired
+			private ReplyDao replyDao;
+		}
+		
+	댓글관련 요청을 처리할 ReplyController 클래스
+		package kr.co.lunch;
+		
+		import org.springframework.beans.factory.annotation.Autowired;
+		import org.springframework.web.bind.annotation.RestController;
+
+		import kr.co.lunch.service.ReplyService;
+
+		@RestController
+		public class ReplyController {
+			@Autowired
+			private ReplyService replyService;
+		}
+		
+댓글 쓰기
+	reply.xml 파일에 댓글 쓰기 sql
+		<insert id="write" parameterType="Reply">
+			insert into reply(rpcode, rptext, email, nickname, bdcode, regdate)
+			values(rpcodeseq_nextval, #{rptext}, #{email}, #{nickname}, #{bdcode}, sysdate)
+		</insert>
+		
+	ReplyDao 클래스에 댓글 쓰기 메소드
+		public int write(Reply reply) {
+			return sqlSession.insert("reply.write", reply);
+		}
+		
+	ReplySerivce 인터페이스에 댓글쓰기 메소드 선언
+		public boolean write(HttpServletRequest request);
+		
+	ReplyServiceImpl 클래스에서 구현
+		@Override
+		public boolean write(HttpServletRequest request) {
+			boolean result = false;
+			String rptext = request.getParameter("rptext");
+			int bdcode = Integer.parseInt(request.getParameter("bdcode"));
+			String email = request.getParameter("email");
+			String nickname = request.getParameter("nickname");
+			
+			Reply reply = new Reply();
+			reply.setRptext(rptext);
+			reply.setBdcode(bdcode);
+			reply.setEmail(email);
+			reply.setNickname(nickname);
+			
+			int r = replyDao.write(reply);
+			if(r > 0) {
+				result = true;
+			}
+			return result;
+		}
+		
+	ReplyController 클래스에 댓글쓰기 요청 처리 메소드
+		@RequestMapping(value="reply/write", method=RequestMethod.GET)
+		public Map<String, Object> write(HttpServletRequest request) {
+			boolean result = replyService.write(request);
+			Map<String, Object> map = new HashMap<>();
+			map.put("result", result);
+			return map;
+		}
+		
+	detail.jsp 파일에 댓글쓰기 생성
+		댓글쓰기 버튼
+			<button class="btn btn-info" id="writereply">댓글</button>
+			
+		댓글쓰기 대화상자
+			<!-- 댓글쓰기 대화상자 -->
+			<div class="box-body" style="display:none;" id="replyform">
+				<label for="nickname">작성자</label>
+				<input class="form-control" type="text" id="nickname" value="${member.nickname }" readonly="readonly"/>
+				<label for="rptext">댓글내용</label>
+				<input class="form-control" type="text" id="replytext" placeholder="댓글 내용을 작성하세요."/>
+			</div>
+			
+		댓글쓰기 버튼을 눌렀을 때 수행할 스크립트
+			// 댓글 버튼을 눌렀을 때 처리
+			document.getElementById("writereply").addEventListener("click",function(){
+				$(function(){
+					$("#replyform").dialog({
+						resizable : false,
+						height : "auto",
+						width : 400,
+						modal : true,
+						open : function(){
+							$("#rptext").focus();
+						},
+						buttons : {
+							"저장" : function(){
+								$(this).dialog("close");
+								replytext = $("#replytext").val();
+								$.ajax({
+									url : "../reply/write",
+									data : {
+										"bdcode" : "${board.bdcode}",
+										"email" : "${member.email}",
+										"nickname" : "${member.nickname}",
+										"rptext":rptext
+									},
+									dataType : "json",
+									success : function(data){
+										console.log(data.result);
+									}
+								})
+							},
+							"취소" : function(){
+								$(this).dialog("close");
+								$("#rptext").val("");
+							}
+						}
+					});
+				});
+			});
+			
+목록보기 제목뒤에 댓글개수 출력
+	Board 클래스에 rpcnt 라는 프로퍼티 추가
+		private int rpcnt;
+		
+	board.xml 파일에 reply 테이블에서 bdcode에 해당하는 데이터의 개수
+		<select id="replyCount" parameterType="java.lang.Integer" resultType="java.lang.Integer">
+			select count(*)
+			from reply
+			where bdcode=#{bdcode}
+		</select>
+		
+	BoardDao에 댓글개수 가져오는 메소드
+		public int replyCount(int bdcode) {
+			return sqlSession.selectOne("board.replyCount", bdcode);
+		}
+		
+	BoardServiceImpl의 목록보기 메소드의 list를 순회하는 코드에 댓글개수 가져오는 코드 추가
+		board.setRpcnt(boardDao.replyCount(board.getBdcode()));
+		
+	list.jsp 파일의 게시글제목 출력부분에 댓글개수 추가
+		<span class="badge bg-blue">[${board.rpcnt }]</span>
+		
+	댓글이 5개 이상이면 hot 아이콘 추가
+		webapp/resources/img/hot_icon.png
+		
+		<c:if test="${board.rpcnt >= 5 }">
+			<img src="../resources/img/hot_icon.png" height="25px">
+		</c:if>
+		
+상세보기에서 댓글 출력하기
+	reply.xml 파일에 bdcode에 해당하는 댓글 모두 찾아오기 sql
+		<select id="rplist" parameterType="java.lang.Integer" resultType="Reply">
+			select *
+			from reply
+			where bdcode = #{bdcode}
+			order by regdate desc
+		</select>
+		
+	ReplyDao 에 bdcode에 해당하는 댓글 모두 찾아오기 메소드
+		public List<Reply> rplist(int bdcode) {
+			return sqlSession.selectList("reply.rplist", bdcode);
+		}
+		
+	ReplyService 인터페이스에 bdcode에 해당하는 댓글 모두 찾아오기 메소드 선언
+		public List<Reply> rplist(HttpServletRequest request);
+		
+	ReplyServiceImpl 클래스에서 구현
+		@Override
+		public List<Reply> rplist(HttpServletRequest request) {
+			int bdcode = Integer.parseInt(request.getParameter("bdcode"));
+			return replyDao.rplist(bdcode);
+		}
+		
+	ReplyController 에 댓글 찾아오기 요청 처리 메소드
+		@RequestMapping(value="reply/rplist", method=RequestMethod.GET)
+		public List<Reply> rplist(HttpServletRequest request){
+			return replyService.rplist(request);
+		}
+		
+	댓글이 제대로 오는지 확인
+		http://localhost:8989/lunch/reply/rplist?bdcode=46
+		
+	BoardServiceImpl의 상세보기 메소드에 댓글개수 가져오는 코드 추가
+		@Override
+		public Board detail(HttpServletRequest request) {
+			int bdcode = Integer.parseInt(request.getParameter("bdcode"));
+			boardDao.readcnt(bdcode);
+			Board board = boardDao.detail(bdcode);
+			board.setRpcnt(boardDao.replyCount(bdcode));
+			return board;
+		}
+		
+	detail.jsp 파일에서 댓글이 있다면 댓글 출력 영역에 댓글 출력
+		댓글출력 영역
+			<div id="replydisp"></div>
+			
+		화면이 출력된 후 댓글이 있다면 댓글을 댓글출력 영역에 출력
+			// 댓글이 있다면 댓글출력영역에 댓글출력
+			email = "${member.email}";
+			<c:if test='${board.rpcnt > 0}'>
+				$(function(){				
+					// 댓글을 썼을 때 다시 호출해야하기 때문에 함수를 만들어서 호출
+					getReply();
+				});
+			</c:if>
+			// 댓글 관련 함수
+			function getReply(){
+				$.ajax({
+					url:"../reply/rplist",
+					data:{"bdcode" : "${board.bdcode}"},
+					dataType:"json",
+					success:function(data){
+						// 출력하는 함수 호출
+						// 하나의 영역에서 코드가 너무 길어지지 않도록 함수를 다시 호출
+						display(data);
+					}
+				});
+			};
+			function display(data){
+				disp = "";
+				$(data).each(function(idx,item){
+					disp += "<div style='height:46px; border-top:1px solid grey; padding: 5px 0;'>";
+					disp += "<label style='height:36px; line-height:36px;'>";
+					disp += item.nickname + " : " + item.rptext;
+					disp += "</label>";
+					if(email==item.email){
+						// 삭제버튼 생성
+						// 삭제버튼이 여러개 될 수 있기 때문에
+						// 버튼의 id를 구분할 수 있는 값으로 만들면 나중에 id로 구분할 수 있음
+						// 여기에서는 id를 del댓글번호 가 됨
+						disp += "<button class='btn btn-danger' ";
+						disp += "id='del"+item.rpcode+"'";
+						disp += "style='float:right; margin-left:5px;' onclick='del(this)'>";
+						disp += "댓글삭제"
+						disp += "</button>";
+						// 댓글수정 버튼
+						disp += "<button class='btn btn-warning' ";
+						disp += "id='mod"+item.rpcode+"'";
+						disp += "style='float:right' onclick='mod(this)'>";
+						disp += "댓글수정"
+						disp += "</button>";
+					}
+					disp += "</div>";
+				});
+				// 출력영역에 출력
+				document.getElementById("replydisp").innerHTML = disp;
+			};
+			
+댓글 삭제
+	댓글을 삭제할 때는 rpcode가 필요
+	
+	reply.xml 파일에 댓글 삭제 sql
+		<delete id="delete" parameterType="java.lang.Integer">
+			delete from reply
+			where rpcode = #{rpcode}
+		</delete>
+		
+	ReplyDao 클래스에 댓글 삭제 메소드
+		public int delete(int rpcode) {
+			return sqlSession.delete("reply.delete", rpcode);
+		}
+		
+	ReplyService 인터페이스에 댓글삭제 메소드
+		public boolean delete(HttpServletRequest request);
+		
+	ReplyServiceImpl 클래스에서 구현
+		@Override
+		public boolean delete(HttpServletRequest request) {
+			boolean result = false;
+			int rpcode = Integer.parseInt(request.getParameter("rpcode"));
+			int r = replyDao.delete(rpcode);
+			if(r > 0) {
+				result = true;
+			}
+			return result;
+		}
+		
+	BoardController 클래스에 댓글삭제 요청 처리 메소드
+		@RequestMapping(value="reply/delete", method=RequestMethod.GET)
+		public Map<String, Object> delete(HttpServletRequest request){
+			boolean result = replyService.delete(request);
+			Map<String, Object> map = new HashMap<>();
+			map.put("result", result);
+			return map;
+		}
+		
+	detail.jsp 파일에 댓글삭제 버튼 눌렀을 때 스크립트
+		// 댓글삭제 버튼 눌렀을 때 호출되는 함수
+		function del(btn){
+			// 댓글번호
+			id = btn.id;
+			rpcode = id.split("del")[1];
+			$("#dialog-confirm").dialog({
+				resizable : false,
+				height : "auto",
+				width : 400,
+				modal : true,
+				buttons : {
+					"삭제" : function() {
+						$(this).dialog("close");
+						$.ajax({
+							url:"../reply/delete",
+							data:{"rpcode":rpcode},
+							dataType:"json",
+							success:function(){
+								getReply();
+							}
+						});
+					},
+					"취소" : function() {
+						$(this).dialog("close");
+					}
+				}
+			});
+		};
+		
+댓글 수정하기 처리
+	rpcode, rptext가 필요함
+	
+	reply.xml 파일에 댓글내용 수정 sql
+		<update id="update" parameterType="Reply">
+			update reply
+			set rptext = #{rptext}
+			where rpcode = #{rpcode}
+		</update>
+		
+	ReplyDao에 댓글수정 메소드
+		public int update(Reply reply) {
+			return sqlSession.update("reply.update", reply);
+		}
+		
+	ReplyService 인터페이스에 댓글수정 메소드 선언
+		public boolean update(HttpServletRequest request);
+		
+	ReplyServiceImpl 클래스에 구현
+		@Override
+		public boolean update(HttpServletRequest request) {
+			boolean result = false;
+			int rpcode = Integer.parseInt(request.getParameter("rpcode"));
+			String rptext = request.getParameter("rptext");
+			Reply reply = new Reply();
+			reply.setRpcode(rpcode);
+			reply.setRptext(rptext);
+			int r = replyDao.update(reply);
+			if(r > 0) {
+				result = true;
+			}
+			return result;
+		}
+		
+	BoardController 에 댓글수정 요청처리 메소드
+		@RequestMapping(value="reply/update", method=RequestMethod.GET)
+		public Map<String, Object> update(HttpServletRequest request){
+			boolean result = replyService.update(request);
+			Map<String, Object> map = new HashMap<>();
+			map.put("result", result);
+			return map;
+		}
+		
+	detail.jsp 파일에서 댓글수정 버튼 눌렀을 때 스크립트
+		// 댓글수정 버튼 눌렀을 때 호출되는 함수
+		function mod(btn){
+			// 댓글번호
+			id = btn.id;
+			rpcode = id.split("mod")[1];
+			$("#replyform").dialog({
+				resizable : false,
+				height : "auto",
+				width : 400,
+				modal : true,
+				open : function(){
+					$("#replytext").focus();
+				},
+				buttons : {
+					"수정" : function(){
+						$(this).dialog("close");
+						rptext = $("#rptext").val();
+						$.ajax({
+							url : "../reply/update",
+							data : {
+								"rpcode" : rpcode,
+								"rptext" : rptext
+							},
+							dataType : "json",
+							success : function(data){
+								getReply();
+							}
+						});
+					},
+					"취소" : function(){
+						$(this).dialog("close");
+						$("#replytext").val("");
+					}
+				}
+			});
+		};

@@ -1,0 +1,88 @@
+게시글 목록보기, 작성, 수정, 삭제는 로그인을 한 경우에만 가능하도록 만들기
+로그인이 안돼있으면 로그인화면으로 이동해서 로그인하면 원래 페이지로 돌아가기
+
+HandlerInterceptor를 구현한 클래스 생성
+	kr.co.lunch.interceptor.AuthenticationInterceptor
+	
+	preHandler 메소드에서 로그인 여부를 확인해서 처리
+	
+		@Component
+		public class AuthenticationInterceptor implements HandlerInterceptor {
+
+			@Override
+			public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+					throws Exception {
+				// 로그인 확인
+				HttpSession session = request.getSession();
+				// 로그인돼있지 않다면
+				if(session.getAttribute("member") == null) {
+					// 기존 요청 가져오기
+					String requestURI = request.getRequestURI();
+					String contextPath = request.getContextPath();
+					// 기존 요청
+					String command = requestURI.substring(contextPath.length()+1);
+					// 파라미터
+					String query = request.getQueryString();
+					// 실제요청주소 만들기
+					if(query != null || query.equals("null")) {
+						query = "";
+					}else {
+						query = "?" + query;
+					}
+					// 세션에 주소 저장하기
+					session.setAttribute("command", command + query);
+					// 세션에 메시지 저장
+					session.setAttribute("msg", "로그인해야 이용할 수 있는 서비스입니다.");
+					
+					// 로그인페이지로 redirect
+					response.sendRedirect(contextPath+"/member/login");
+					return false;
+				}
+				return true;
+			}
+
+			@Override
+			public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler,
+					ModelAndView modelAndView) throws Exception {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex)
+					throws Exception {
+				// TODO Auto-generated method stub
+
+			}
+
+		}
+	
+	servlet-context.xml 파일에 인터셉터 적용
+		<!-- 인터셉터 -->
+		<interceptors>
+			<!-- 권한 인터셉터 -->
+			<interceptor>
+				<mapping path="/board/list" />
+				<mapping path="/board/write" />
+				<mapping path="/board/delete" />
+				<mapping path="/board/update" />
+				<mapping path="/board/detail" />
+				<beans:ref bean="authenticationInterceptor" />
+			</interceptor>
+		</interceptors>
+		
+	MemberController에서 로그인처리메소드의 로그인성공부분 수정
+		이전요청이 있는 경우 그 페이지로 이동
+		// 이전요청이 있는지 확인해서 이동페이지를 결정
+		Object command = session.getAttribute("command");
+		if(command == null) {
+			return "redirect:/";
+		}else {
+			session.removeAttribute("msg");
+			return "redirect:/" + command.toString();
+		}
+		
+Dao의 클래스가 호출될 때마다 파일에 기록하는 AOP
+	
+		
+		

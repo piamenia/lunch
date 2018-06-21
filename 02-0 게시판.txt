@@ -1,0 +1,627 @@
+게시판
+	DB에 board 테이블 생성
+		-- board 게시판
+		create table board(
+			bdcode number(5) primary key,
+			subject varchar2(200),
+			content clob,
+			regdate date default sysdate,
+			redcnt number(10) default 0,
+			ip varchar2(100),
+			email varchar2(50) references member(email) on delete set null,
+			nickname varchar2(30)
+		);
+
+	DB에 bdcode 시퀀스 생성
+		-- bdcode를 생성할 시퀀스
+		create sequence bdcodeseq;
+		
+	DB에 작업할 mapper파일
+		src/main/resources/mybatis/mappers/board.xml
+		
+		<?xml version="1.0" encoding="UTF-8"?>
+		<!DOCTYPE mapper
+		 PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		 "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+		<mapper namespace="board">
+		</mapper>
+		
+	dao패키지에 board테이블과 작업할 BoardDao 클래스
+		@Repository
+		public class BoardDao {
+			@Autowired
+			private SqlSession sqlSession;
+		}
+		
+	service 패키지에 BoardService 인터페이스 생성
+		public interface BoardService {
+
+		}
+	BoardService 인터페이스를 구현하는 BoardServiceImpl 클래스
+		@Service
+		public class BoardServiceImpl implements BoardService {
+			@Autowired
+			private BoardDao boardDao;
+		}
+		
+	게시판 관련 요청을 처리할 BoardController 클래스
+		@Controller
+		public class BoardController {
+			@Autowired
+			private BoardService boardService;
+		}
+		
+	board 테이블을 나타내는 Board 클래스
+		public class Board {
+			private int bdcode, readcnt;
+			private String subject, content, ip, email, nickname;
+			private String regdate;
+			@Override
+			public String toString() {
+				return "Board [bdcode=" + bdcode + ", readcnt=" + readcnt + ", subject=" + subject + ", content=" + content
+						+ ", ip=" + ip + ", email=" + email + ", nickname=" + nickname + ", regdate=" + regdate + "]";
+			}
+			public int getBdcode() {
+				return bdcode;
+			}
+			public void setBdcode(int bdcode) {
+				this.bdcode = bdcode;
+			}
+			public int getReadcnt() {
+				return readcnt;
+			}
+			public void setReadcnt(int readcnt) {
+				this.readcnt = readcnt;
+			}
+			public String getSubject() {
+				return subject;
+			}
+			public void setSubject(String subject) {
+				this.subject = subject;
+			}
+			public String getContent() {
+				return content;
+			}
+			public void setContent(String content) {
+				this.content = content;
+			}
+			public String getIp() {
+				return ip;
+			}
+			public void setIp(String ip) {
+				this.ip = ip;
+			}
+			public String getEmail() {
+				return email;
+			}
+			public void setEmail(String email) {
+				this.email = email;
+			}
+			public String getNickname() {
+				return nickname;
+			}
+			public void setNickname(String nickname) {
+				this.nickname = nickname;
+			}
+			public String getRegdate() {
+				return regdate;
+			}
+			public void setRegdate(String regdate) {
+				this.regdate = regdate;
+			}
+		}
+
+		
+게시판 목록보기 구현
+	header.jsp 파일에 게시판 링크
+		<li role="presentation"><a href="${pageContext.request.contextPath }/board/list?page=1">게시판</a></li>
+		
+	board.xml 파일에 게시글 목록 가져오기 sql
+		<select id="list" resultType="Board">
+			select *
+			from board;
+		</select>
+		
+	BoardDao 클래스에 게시물 전체 가져오는 메소드
+		public List<Board> list(){
+			return sqlSession.selectList("board.list");
+		}
+		
+	BoardService 인터페이스에 게시물전체 가져오는 메소드 선언
+		public List<Board> list();
+		
+	BoardServiceImpl 클래스에서 구현
+		@Override
+		public List<Board> list() {
+			// 오늘 작성된 글은 시간, 이전에 작성된 글은 날짜를 표시
+			List<Board> list = boardDao.list();
+			// 오늘 날짜
+			Calendar cal = Calendar.getInstance();
+			Date today = new Date(cal.getTimeInMillis());
+			
+			// list의 데이터를 확인해서 날짜와 시간 저장
+			for(Board board : list) {
+				// 날짜
+				String regdate = board.getRegdate().split(" ")[0];
+				// 글쓴 날짜와 오늘 날짜가 같으면
+				if(today.toString().equals(regdate)) {
+					board.setDispdate(board.getRegdate().split(" ")[1].substring(0, 5));
+				}else {
+					board.setDispdate(regdate);
+				}
+			}
+			return list;
+		}
+		
+	BoardController 클래스에 board/list GET요청 처리 메소드
+		@RequestMapping(value="board/list", method=RequestMethod.GET)
+		public String list(Model model) {
+			model.addAttribute("list", boardService.list());
+			return "board/list";
+		}
+	
+	views/board/list.jsp 파일 생성
+		<%@ page language="java" contentType="text/html; charset=UTF-8"
+			pageEncoding="UTF-8"%>
+		<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+		<html>
+		<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<title>목록보기</title>
+		</head>
+		<body>
+			<%@include file="../include/header.jsp"%>
+			<div class="box">
+				<div class="box-header with-border">
+					<c:if test="${msg == null}">
+						<h3 class="box-title">게시판 목록보기</h3>
+					</c:if>
+
+					<c:if test="${msg != null}">
+						<h3 class="box-title">${msg}</h3>
+					</c:if>
+				</div>
+				<div class="box-body">
+					<table class="table table-bordered table-hover">
+						<tr>
+							<th width="11%">글번호</th>
+							<th width="46%">제목</th>
+							<th width="16%">작성자</th>
+							<th width="16%">작성일</th>
+							<th width="11%">조회수</th>
+						</tr>
+						<c:forEach var="board" items="${list }">
+							<tr>
+								<td align="right">${board.bno}&nbsp;</td>
+								<td>&nbsp; <a href="detail?bno=${board.bno}">${board.title}</a></td>
+								<td>&nbsp;${board.nickname}</td>
+								<td>&nbsp; ${board.dispdate}</td>
+								<td align="right">
+									<span class="badge bg-blue">${board.readcnt}</span>&nbsp;
+								</td>
+							</tr>
+						</c:forEach>
+					</table>
+				</div>
+				<div class="box-footer">
+					<div class="text-center">
+						<button id='mainBtn' class="btn btn-primary">메인으로</button>
+					</div>
+					<script>
+						$(function() {
+							$('#mainBtn').on("click", function(event) {
+								location.href = "../";
+							});
+						});
+					</script>
+				</div>
+			</div>
+			<%@include file="../include/footer.jsp"%>
+		</body>
+		<style>
+		.table th {
+			text-align: center;
+		}
+		</style>
+		</html>
+		
+게시글 쓰기
+	쓰기링크 -> 입력 UI -> 저장
+	
+	list.jsp 파일에 로그인 돼있을 때 글쓰기 링크
+		<c:if test="${member!=null }">
+			<button id='write' class="btn-primary">글쓰기</button>							
+		</c:if>
+		
+		$("#write").on("click", function(){
+			location.href = "write";
+		});
+		
+	BoardController에서 board/write GET 요청처리
+		@RequestMapping(value="board/write", method=RequestMethod.GET)
+		public String write() {
+			return "board/write";
+		}
+	
+	view/board/write.jsp 파일 생성
+		<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+		<%@include file="../include/header.jsp"%>
+		<section class="content">
+			<div class="box-header">
+				<h3 class="box-title">게시판 글쓰기</h3>
+			</div>
+			<form role="form" method="post">
+				<div class="box-body">
+					<div class="form-group">
+						<label>제목</label> <input type="text" name='title'
+							class="form-control" placeholder="제목을 입력하세요">
+					</div>
+					<div class="form-group">
+						<label>내용</label>
+						<textarea class="form-control" name="content" rows="5"
+							placeholder="내용을 입력하세요"></textarea>
+					</div>
+					<div class="form-group">
+						<label>작성자</label> <input type="text" name="nickname"
+							value="${member.nickname}" class="form-control" readonly="readonly">
+					</div>
+				</div>
+				<div class="box-footer" style="text-align:center;">
+					<button type="submit" class="btn btn-success">작성완료</button>
+					<a href="../" class="btn btn-primary">메인으로</a>
+					<a href="list" class="btn btn-primary">목록으로</a>
+				</div>
+			</form>
+		</section>
+		<%@include file="../include/footer.jsp"%>
+		
+	board.xml 파일에 게시글 작성 sql
+		<insert id="write" parameterType="Board">
+			insert into board(bdcode, subject, content, ip, email, nickname)
+			values(bdcodeseq.nextval, #{subject}, #{content}, #{ip}, #{email}, #{nickname})
+		</insert>
+		
+	BoardDao 클래스에 게시글 작성 메소드
+		public void write(Board board) {
+			sqlSession.insert("board.write");
+		}
+		
+	BoardService 인터페이스에 게시글 작성 메소드 선언
+		public void write(HttpServletRequest request);
+		
+	BoardServiceImpl 클래스에서 구현
+		@Override
+		public void write(HttpServletRequest request) {
+			// 파라미터 읽기
+			String subject = request.getParameter("subject");
+			String content = request.getParameter("content");
+			// ip 가져오기
+			String ip = request.getRemoteAddr();
+			// 게시글을 쓰는(로그인 한) 사용자 정보
+			HttpSession session = request.getSession();
+			Member member = (Member)session.getAttribute("member");
+			String email = member.getEmail();
+			String nickname = member.getNickname();
+			
+			// Dao의 매개변수 만들기
+			Board board = new Board();
+			board.setSubject(subject);
+			board.setContent(content);
+			board.setIp(ip);
+			board.setEmail(email);
+			board.setNickname(nickname);
+			
+			// Dao의 메소드 호출
+			boardDao.write(board);
+		}
+		
+	BoardController 클래스에 board/write POST 요청 처리 메소드
+		@RequestMapping(value="board/write", method=RequestMethod.POST)
+		public String writePost(HttpServletRequest request, RedirectAttributes attr, Model model) {
+			boardService.write(request);
+			attr.addFlashAttribute("msg", "게시글이 작성되었습니다.");
+			return "redirect:list";
+		}
+		
+		
+	list.jsp 파일에서 msg가 있으면 화면에 출력
+		
+		
+상세보기
+	list.jsp 파일에서 제목을 클릭했을 때 링크
+		bdcode에 해당하는 게시글
+		<a href="detail?bdcode=${board.bdcode}">${board.subject}</a>/
+		
+	board.xml파일에 readcnt 1증가하는 sql과 bdcode에 해당하는 게시글 가져오기 sql
+		<update id="readcnt" parameterType="java.lang.String">
+			update board
+			set readcnt = readcnt+1
+			where bdcode = #{bdcode}
+		</update>
+		
+		<select id="detail" parameterType="java.lang.String" resultType="Board">
+			select subject, content, ip, email, nickname, bdcode, readcnt, regdate
+			from board
+			where bdcode = #{bdcode}
+		</select>
+		
+	BoardDao 클래스에 조회수 1증가 메소드와 상세보기 메소드
+		public void readcnt(int bdcode) {
+			sqlSession.update("board.readcnt", bdcode);
+		}
+		
+		public Board detail(int bdcode) {
+			return sqlSession.selectOne("board.detail", bdcode);
+		}
+		
+	BoardService 인터페이스에 상세보기 메소드 선언
+		public Board detail(HttpServletRequest request);
+		
+	BoardServiceImpl 클래스에서 구현
+		@Override
+		public Board detail(HttpServletRequest request) {
+			int bdcode = Integer.parseInt(request.getParameter("bdcode"));
+			boardDao.readcnt(bdcode);
+			return boardDao.detail(bdcode);
+		}
+		
+	BoardController 에 상세보기 요청 처리 메소드
+		@RequestMapping(value="board/detail", method=RequestMethod.GET)
+		public String detail(HttpServletRequest request, Model model) {
+			Board board = boardService.detail(request);
+			model.addAttribute("board", board);
+			return "board/detail";
+		}
+		
+	views/board/detail.jsp 파일 생성
+		<%@ page language="java" contentType="text/html; charset=UTF-8"
+			pageEncoding="UTF-8"%>
+		<!DOCTYPE html>
+		<html>
+		<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<title>상세보기</title>
+		</head>
+		<body>
+			<%@ include file="../include/header.jsp"%>
+			<section class="content">
+				<div class="box">
+					<div class="box-header">
+						<h3 class="box-title">상세보기</h3>
+					</div>
+					<div class="box-body">
+						<div class="form-group">
+							<label>제목</label> <input type="text" name="subject"
+								class="form-control" value="${board.subject}" readonly="readonly" />
+						</div>
+						<div class="form-group">
+							<label>내용</label>
+							<textarea name="content" rows="5" readonly="readonly"
+								class="form-control">${board.content}</textarea>
+						</div>
+						<div class="form-group">
+							<label>작성자</label> <input type="text" class="form-control"
+								value="${board.nickname}" readonly="readonly" />
+						</div>
+					</div>
+					<div class="box-footer">
+						<button class="btn btn-success" id="mainbtn">메인</button>
+						<c:if test="${member.email == board.email}">
+							<button class="btn btn-warning" id="updatebtn">수정</button>
+							<button class="btn btn-danger" id="deletebtn">삭제</button>
+						</c:if>
+						<button class="btn btn-primary" id="listbtn">목록</button>
+					</div>
+				</div>
+			</section>
+			<%@ include file="../include/footer.jsp"%>
+			<script>
+				//메인 버튼을 눌렀을 때 처리
+				document.getElementById("mainbtn").addEventListener("click",function() {
+							location.href = "../";
+						});
+				//목록 버튼을 눌렀을 때 처리
+				document.getElementById("listbtn").addEventListener("click",function() {
+							location.href = "list";
+						});
+				<c:if test = "${member.email == board.email}">
+				//삭제 버튼을 눌렀을 때 처리
+				document.getElementById("deletebtn").addEventListener("click",function() {
+							location.href = "delete?bdcode=" + ${board.bdcode};
+						});
+				//수정 버튼을 눌렀을 때 처리
+				document.getElementById("updatebtn").addEventListener("click",function() {
+							location.href = "update?bdcode=" + ${board.bdcode};
+						});
+				</c:if>
+			</script>
+		</body>
+		</html>
+		
+게시글 수정
+	수정보기
+		bdcode를 가지고 데이터1개를 조회해서 수정화면으로 이동
+		sql 과 Dao는 상세보기 조회수1증가는 제외하고 사용
+	
+	BoardService 인터페이스에서 게시글 수정보기 메소드 선언
+		public Board updateView(HttpServletRequest request);
+	
+	BoardServiceImpl 클래스에서 구현
+		@Override
+		public Board updateView(HttpServletRequest request) {
+			int bdcode = Integer.parseInt(request.getParameter("bdcode"));
+			return boardDao.detail(bdcode);
+		}
+		
+	BoardController 에서 수정보기 요청 처리 메소드
+		@RequestMapping(value="board/update", method=RequestMethod.GET)
+		public String updateView(HttpServletRequest request, Model model) {
+			Board board = boardService.updateView(request);
+			model.addAttribute("board", board);
+			return "board/update";
+		}
+		
+	views/board/update.jsp 파일 생성
+		<%@ page language="java" contentType="text/html; charset=UTF-8"
+			pageEncoding="UTF-8"%>
+		<!DOCTYPE html>
+		<html>
+		<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<title>글쓰기</title>
+		</head>
+		<body>
+			<%@ include file="../include/header.jsp"%>
+			<section class="center">
+				<div class="box box-primary">
+					<div class="box-header">
+						<h3 class="box-title">게시물 수정</h3>
+					</div>
+					<form role="form" method="post" id="updateForm">
+						<!-- 글번호를 넘겨주기 위해서 숨김 객체로 생성 -->
+						<input type="hidden" name="bdcode" value="${board.bdcode}" />
+						<div class="box-body">
+							<div class="form-group">
+								<label>제목</label> <input type="text" name="subject"
+									class="form-control" value="${board.subject}" />
+							</div>
+							<div class="form-group">
+								<label>내용</label>
+								<textarea name="content" class="form-control"
+									placeholder="내용 입력" rows="5">${board.content}</textarea>
+							</div>
+							<div class="form-group">
+								<label>작성자</label> <input type="text" class="form-control"
+									value="${board.nickname}" readonly="readonly" />
+							</div>
+						</div>
+					</form>
+					<div class="box-footer">
+						<button class="btn btn-success" id="updatebtn">수정완료</button>
+						<button class="btn btn-warning" id="mainbtn">메인으로</button>
+						<button class="btn btn-primary" id="listbtn">목록보기</button>
+					</div>
+				</div>
+				<script>
+					//메인 버튼을 눌렀을 때 처리
+					document.getElementById("mainbtn").addEventListener("click",function() {
+						location.href = "../";
+					});
+					//목록 버튼을 눌렀을 때 처리
+					document.getElementById("listbtn").addEventListener("click",function() {
+						location.href = "list";
+					});
+					//수정 완료 버튼을 눌렀을 때 처리
+					document.getElementById("updatebtn").addEventListener("click",function() {
+						document.getElementById("updateForm").submit();
+					});
+				</script>
+			</section>
+			<%@ include file="../include/footer.jsp"%>
+		</body>
+		</html>
+		
+	board.xml 파일에 게시글수정 sql
+		<update id="update" parameterType="Board">
+			update board
+			set subject = #{subject}, content = #{content}, ip = #{ip}, regdate = sysdate
+			where bdcode = #{bdcode}
+		</update>
+		
+	BoardDao 클래스에 게시글수정 메소드
+		public void update(Board board) {
+			sqlSession.update("boadr.update", board);
+		}
+		
+	BoardService 인터페이스에 게시글수정 메소드 선언
+		public void update(HttpServletRequest request);
+	BoardServiceImpl 클래스에서 구현
+		@Override
+		public void update(HttpServletRequest request) {
+			String subject = request.getParameter("subject");
+			String content = request.getParameter("content");
+			String ip = request.getRemoteAddr();
+			int bdcode = Integer.parseInt(request.getParameter("bdcode"));
+			
+			Board board = new Board();
+			board.setSubject(subject);
+			board.setContent(content);
+			board.setIp(ip);
+			board.setBdcode(bdcode);
+			
+			boardDao.update(board);
+		}
+		
+	BoardController 클래스에 게시글 수정 요청 처리 메소드
+		@RequestMapping(value="board/update", method=RequestMethod.POST)
+		public String update(HttpServletRequest request, RedirectAttributes attr) {
+			boardService.update(request);
+			int bdcode = Integer.parseInt(request.getParameter("bdcode"));
+			return "redirect:detail?bdcode="+bdcode;
+		}
+		
+게시글 삭제
+	detail.jsp 파일에 삭제확인 UI와 이벤트 작성
+	
+	<!-- 삭제 대화상자 -->
+	<c:if test = "${member.email == board.email}">
+		<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+		<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+		<div id="dialog-confirm" title="삭제 확인" style="display:none;">
+			<p>
+				<span class="ui-icon ui-icon-alert" style="float: left; margin: 12px 12px 20px 0;"></span>
+				한번 삭제한 자료는 복구할 수 없습니다. 정말 삭제하시겠습니까?
+			</p>
+		</div>
+	</c:if>
+	
+	//삭제 버튼을 눌렀을 때 처리
+	document.getElementById("deletebtn").addEventListener("click",function() {
+		$(function(){
+			$("#dialog-confirm").dialog({
+				resizable : false,
+				height : "auto",
+				width : 400,
+				modal : true,
+				buttons : {
+					"삭제" : function() {
+						$(this).dialog("close");
+						location.href = "delete?bdcode=${board.bdcode}";
+					},
+					"취소" : function() {
+						$(this).dialog("close");
+					}
+				}
+			});
+		});
+	});
+	
+	board.xml 파일에 게시글삭제 sql
+		<delete id="delete" parameterType="java.lang.Integer">
+			delete from board
+			where bdcode = #{bdcode}
+		</delete>
+		
+	BoardDao 클래스에 게시글삭제 메소드
+		public void delete(int bdcode) {
+			sqlSession.delete("board.delete", bdcode);
+		}
+		
+	BoardService 인터페이스에 게시글삭제 메소드 선언
+		public void delete(HttpServletRequest request);
+		
+	BoardServiceImpl 클래스에서 구현
+		@Override
+		public void delete(HttpServletRequest request) {
+			int bdcode = Integer.parseInt(request.getParameter("bdcode"));
+			boardDao.delete(bdcode);
+		}
+		
+	BoardController 클래스에 게시글 삭제 요청 처리 메소드
+		@RequestMapping(value="board/delete", method=RequestMethod.GET)
+		public String delete(HttpServletRequest request, RedirectAttributes attr) {
+			boardService.delete(request);
+			attr.addAttribute("msg", "게시글이 삭제되었습니다.");
+			return "redirect:list";
+		}
+		

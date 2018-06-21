@@ -1,0 +1,149 @@
+검색 기능
+	sql의 like 이용
+	
+	검색에 사용할 VO클래스
+		Criteria클래스를 상속받고 searchType, keyword를 추가로 갖는 구조
+		kr.co.lunch.domain.SearchCriteria
+		
+		package kr.co.lunch.domain;
+
+		public class SearchCriteria extends Criteria {
+			private String searchType, keyword;
+
+			public String getSearchType() {
+				return searchType;
+			}
+
+			public void setSearchType(String searchType) {
+				this.searchType = searchType;
+			}
+
+			public String getKeyword() {
+				return keyword;
+			}
+
+			public void setKeyword(String keyword) {
+				this.keyword = keyword;
+			}
+
+			@Override
+			public String toString() {
+				return "SearchCriteria [searchType=" + searchType + ", keyword=" + keyword + "]";
+			}
+		}
+		
+	list.jsp 파일에 검색폼 추가
+		<!-- 검색폼 -->
+		<span>검색</span>
+		<select name="searchType" id="searchType">
+			<option value="n"
+			 <c:out value="${map.pageMaker.criteria.searchType==null?'selected':'' }"/>
+			>--</option>
+			<option value="t"
+			 <c:out value="${map.pageMaker.criteria.searchType==t?'selected':'' }"/>
+			>제목</option>
+			<option value="c"
+			 <c:out value="${map.pageMaker.criteria.searchType==c?'selected':'' }"/>
+			>내용</option>
+			<option value="tc"
+			 <c:out value="${map.pageMaker.criteria.searchType==tc?'selected':'' }"/>
+			>제목+내용</option>
+		</select>
+		<input type="text" name="keyword" id="keyword" value="${map.pageMaker.criteria.keyword }"/>
+		<input type="button" value="검색" id="searchbtn" class="btn btn-primary">
+		
+	list.jsp 파일에 있는 모든 링크들에 검색옵션과 검색어를 파라미터로 추가
+		&searchType=${map.pageMaker.criteria.searchType}&keyworkd=${map.pageMaker.criteria.keyword}
+		
+		게시물 제목(상세보기) 링크
+			<a href="detail?bdcode=${board.bdcode}&page=${map.pageMaker.criteria.page}&perPage=${map.pageMaker.criteria.perPage}&searchType=${map.pageMaker.criteria.searchType}&keyworkd=${map.pageMaker.criteria.keyword}">${board.subject}</a>
+			
+		이전 링크
+			<a href="list?page=${map.pageMaker.startPage-1}&perPage=${map.pageMaker.criteria.perPage}&searchType=${map.pageMaker.criteria.searchType}&keyworkd=${map.pageMaker.criteria.keyword}">이전</a>
+			
+		페이지번호 링크
+			<a href="list?page=${idx }&perPage=${map.pageMaker.criteria.perPage}&searchType=${map.pageMaker.criteria.searchType}&keyworkd=${map.pageMaker.criteria.keyword}">${idx }</a>
+			
+		다음 링크
+			<a href="list?page=${map.pageMaker.endPage+1}&perPage=${map.pageMaker.criteria.perPage}&searchType=${map.pageMaker.criteria.searchType}&keyworkd=${map.pageMaker.criteria.keyword}">다음</a>
+			
+	list.jsp 파일에 검색버튼 눌렀을 때 스크립트
+		// 검색버튼 눌렀을 때
+		document.getElementById("searchbtn").addEventListener("click",function(){
+			// select의 선택된 항목 찾아오기
+			// 선택된 행번호
+			x = document.getElementById("searchType").selectedIndex;
+			// select의 모든 값을 배열로 가져오기
+			y = document.getElementById("searchType").options;
+			// keyword에 입력된 값
+			keyword = document.getElementById("keyword").value;
+			
+			location.href = "list?page=1&perPageNum=${map.pageMaker.criteria.perPage}&searchType=" + y[x].value + "&keyword=" + keyword;
+		});
+		
+	board.xml 파일을 수정 - 동적 sql 사용
+		공통으로 사용할 sql
+			<!-- 공통으로 사용할 SQL -->
+			<sql id="search">
+				<if test="searchType!=null">
+					<if test="searchType == 't'.toString()">
+						where subject like '%' || #{keyword} || '%'
+					</if>
+					<if test="searchType == 'c'.toString()">
+						where content like '%' || #{keyword} || '%'
+					</if>
+					<if test="searchType == 'tc'.toString()">
+						where content like '%' || #{keyword} || '%' or subject like '%' || #{keyword} || '%'
+					</if>
+				</if> 
+			</sql>
+			
+		데이터개수 가져오는 sql에 SearchCriteria를 매개변수로 추가하고 공통 sql 추가
+			<select id="totalCount" resultType="java.lang.Integer" parameterType="SearchCriteria">
+				select count(*)
+				from board
+				<include refid="search"/>
+			</select>
+			
+		목록보기 sql에 매개변수를 SearchCriteria로 변경하고 공통 sql 추가
+			<select id="list" resultType="Board" parameterType="SearchCriteria">
+				select bdcode, subject, ip, email, nickname, readcnt, regdate
+				from (select rownum r, bdcode, subject, ip, email, nickname, readcnt, regdate
+						from (select *
+								from board
+								<include refid="search"/>
+								order by regdate desc)) 
+				where r &gt;= #{pageStart} and r &lt;= #{pageStart} + #{perPage} - 1
+			</select>
+			
+	BoardDao 클래스 수정
+		데이터개수 가져오는 메소드에 SearchCriteria를 매개변수로 추가
+			public int totalCount(SearchCriteria criteria) {
+				return sqlSession.selectOne("board.totalCount", criteria);
+			}
+			
+		목록보기 메소드의 매개변수를 SearchCriteria로 변경
+			public List<Board> list(SearchCriteria criteria){
+				return sqlSession.selectList("board.list", criteria);
+			}
+			
+	BoardService 인터페이스의 목록보기메소드의 매개변수를 SearchCriteria로 변경
+		public Map<String, Object> list(SearchCriteria criteria);
+	
+	BoardServiceImpl 클래스 수정
+		목록보기 메소드의 매개변수를 SearchCriteria로 변경
+			public Map<String, Object> list(SearchCriteria criteria) 
+				
+		전체 데이터 개수를 저장하는 부분도 totalCount 메소드에 SearchCriteria를 추가
+			// 전체데이터개수 저장
+			pageMaker.setTotalCount(boardDao.totalCount(criteria));
+			
+	BoardController 클래스의 메소드들의 매개변수 Criteria를 SearchCriteria로 변경
+		public String list(Model model, SearchCriteria criteria)
+		public String detail(HttpServletRequest request, Model model, SearchCriteria criteria)
+		public String update(HttpServletRequest request, RedirectAttributes attr, SearchCriteria criteria)
+		public String delete(HttpServletRequest request, RedirectAttributes attr, SearchCriteria criteria)
+		
+	PageMaker 클래스의 Criteria 변수의 자료형을 SearchCriteria로 변경
+		private SearchCriteria criteria;
+		

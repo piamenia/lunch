@@ -1,0 +1,325 @@
+페이징 처리
+	데이터를 페이지별로 나눠서 출력
+	
+	현재 페이지번호와 페이지당 출력할 개수, 현제 패이지에 출력될 데이터의 시작번호를 저장하는 VO클래스
+		kr.co.lunch.domain.Criteria
+	
+		package kr.co.lunch.domain;
+
+		public class Criteria {
+			private int page, perPage, pageStart;
+			
+			public Criteria() {
+				this.page = 1;
+				this.perPage = 15;
+			}
+
+			@Override
+			public String toString() {
+				return "Criteria [page=" + page + ", perPage=" + perPage + ", pageStart=" + pageStart + "]";
+			}
+
+			public int getPage() {
+				return page;
+			}
+
+			public void setPage(int page) {
+				this.page = page;
+			}
+
+			public int getPerPage() {
+				return perPage;
+			}
+
+			public void setPerPage(int perPage) {
+				this.perPage = perPage;
+			}
+
+			// 페이지번호를 가지고 해당페이지의 시작하는 글 번호를 계산
+			public int getPageStart() {
+				// 이전페이지까지 * 페이지당 게시물 개수 + 1
+				pageStart = (page-1) * perPage + 1;
+				return pageStart;
+			}
+
+			// 페이지 시작번호는 입력받지 않음
+		//	public void setPageStart(int pageStart) {
+		//		this.pageStart = pageStart;
+		//	}
+		}
+	
+	목록보기 하단에 페이지번호를 출력하기 위해서 별도의 데이터들을 저장할 VO클래스
+		시작페이지번호, 끝페이지번호, 이전링크출력여부, 다음링크출력여부, 전체데이터개수
+		Criteria 의 데이터도 필요
+		kr.co.lunch.domain.PageMaker
+		
+		package kr.co.lunch.domain;
+
+		public class PageMaker {
+			// 전체 데이터 개수, 시작페이지번호, 마지막페이지번호
+			private int totalCount, startPage, endPage;
+			// 이전과 다음 링크 여부
+			private boolean prev, next;
+			// 페이지번호 출력개수
+			private int displayPageNum = 5;
+			// 이전에 설정된 옵션 값을 저장하기 위한 변수
+			private Criteria criteria;
+			
+			@Override
+			public String toString() {
+				return "PageMaker [totalCount=" + totalCount + ", startPage=" + startPage + ", endPage=" + endPage + ", prev="
+						+ prev + ", next=" + next + ", displayPageNum=" + displayPageNum + ", criteria=" + criteria + "]";
+			}
+			public int getTotalCount() {
+				return totalCount;
+			}
+			
+			// 전체데이터 개수, 현제페이지번호, 출력할페이지개수를 알면 전부 계산 가능
+			public void setTotalCount(int totalCount) {
+				this.totalCount = totalCount;
+				// 마지막페이지번호
+				endPage = (int)(Math.ceil(criteria.getPage()/(double)displayPageNum)) * displayPageNum;
+				// 시작페이지번호
+				startPage = endPage - displayPageNum + 1;
+				
+				// 이전 링크 출력여부
+				prev = startPage==1 ? false : true;
+				// 끝페이지번호는 전체데이터의 페이지개수보다 크면 전체데이터의 페이지개수로 설정
+				int pagesu = (int)(Math.ceil(totalCount/(double)criteria.getPerPage()));
+				if(endPage > pagesu) {
+					endPage = pagesu;
+				}
+				// 다음 링크 출력여부
+				next = endPage == pagesu ? false : true;
+				
+			}
+			public int getStartPage() {
+				return startPage;
+			}
+			public void setStartPage(int startPage) {
+				this.startPage = startPage;
+			}
+			public int getEndPage() {
+				return endPage;
+			}
+			public void setEndPage(int endPage) {
+				this.endPage = endPage;
+			}
+			public boolean isPrev() {
+				return prev;
+			}
+			public void setPrev(boolean prev) {
+				this.prev = prev;
+			}
+			public boolean isNext() {
+				return next;
+			}
+			public void setNext(boolean next) {
+				this.next = next;
+			}
+			public int getDisplayPageNum() {
+				return displayPageNum;
+			}
+			public void setDisplayPageNum(int displayPageNum) {
+				this.displayPageNum = displayPageNum;
+			}
+			public Criteria getCriteria() {
+				return criteria;
+			}
+			public void setCriteria(Criteria criteria) {
+				this.criteria = criteria;
+			}
+		}
+		
+	board.xml 파일에
+		테이블의 데이터개수를 구하는 sql
+			<select id="totalCount" resultType="java.lang.Integer">
+				select count(*)
+				from board	
+			</select>
+			
+		데이터 목록을 구해주는 sql 수정
+			파라미터를 Criteria로 설정하고 시작하는 데이터번호와 끝나는 데이터번호를 이용해서 원하는 개수만큼 데이터를 가져오기
+			
+			<select id="list" resultType="Board" parameterType="Criteria">
+				select bdcode, subject, ip, email, nickname, readcnt, regdate
+				from (select rownum r, bdcode, subject, ip, email, nickname, readcnt, regdate
+						from (select *
+								from board
+								order by regdate desc)) 
+				where r &gt;= #{pageStart} and r &lt;= #{pageStart} + #{perPage} - 1
+			</select>
+			
+	BoardDao 클래스에
+		전체 데이터개수 가져오는 메소드
+			public int totalCount() {
+				return sqlSession.selectOne("board.totalCount");
+			}
+			
+		게시물 목록 가져오는 메소드 수정
+			public List<Board> list(Criteria criteria){
+				return sqlSession.selectList("board.list", criteria);
+			}
+			
+	BoardService 인터페이스에 게시물 목록 가져오는 메소드 수정
+		게시물목록, 현재페이지번호, 출력할페이지번호 관련데이터를 같이 넘겨줘야함
+		상세보기나 삭제 했을 때는 현재 페이지번호를 같이 넘겨줘서 목록보기로 돌아오는게 좋음
+		
+		public Map<String, Object> list(Criteria criteria);
+		
+	BoardServiceImpl 클래스의 메소드도 수정
+		@Override
+		public Map<String, Object> list(Criteria criteria) {
+			Map<String, Object> map = new HashMap<>();
+			// 오늘 작성된 글은 시간, 이전에 작성된 글은 날짜를 표시
+			List<Board> list = boardDao.list(criteria);
+			// 마지막 페이지에 있는 데이터가 1개밖에 없을 때 그 데이터를 삭제하면 그 페이지의 데이터가 없음
+			if(list.size() == 0) {
+				// 현재 페이지번호를 1 감소시켜서 데이터를 다시 가져와야함
+				criteria.setPage(criteria.getPage()-1);
+				list = boardDao.list(criteria);
+			}
+			
+			// 오늘 날짜
+			Calendar cal = Calendar.getInstance();
+			Date today = new Date(cal.getTimeInMillis());
+			
+			// list의 데이터를 확인해서 날짜와 시간 저장
+			for(Board board : list) {
+				// 날짜
+				String regdate = board.getRegdate().split(" ")[0];
+				// 글쓴 날짜와 오늘 날짜가 같으면
+				if(today.toString().equals(regdate)) {
+					board.setDispdate(board.getRegdate().split(" ")[1].substring(0, 5));
+				}else {
+					board.setDispdate(regdate);
+				}
+			}
+			map.put("list", list);
+			
+			// 페이지번호 목록
+			PageMaker pageMaker = new PageMaker();
+			// 현재페이지와 페이지당 목록개수 저장
+			pageMaker.setCriteria(criteria);
+			// 전체데이터개수 저장
+			pageMaker.setTotalCount(boardDao.totalCount());
+			// 맵에 저장
+			map.put("pageMaekr", pageMaker);
+			return map;
+		}
+
+	BoardController 에 게시물 목록보기 메소드 수정
+		@RequestMapping(value="board/list", method=RequestMethod.GET)
+		public String list(Model model, Criteria criteria) {
+			model.addAttribute("map", boardService.list(criteria));
+			return "board/list";
+		}
+		
+	list.jsp 파일 수정
+		map.list : 게시물 목록
+		map.pageMaker.criteria.perPage : 페이지당 출력개수
+                              .pageStart : 페이지에 출력될 데이터 시작번호
+		             .startPage : 시작페이지 번호
+					 .endPage : 끝페이지 번호
+					 .prev : 이전 링크 출력여부
+					 .next : 다음 링크 출력여부
+					 .totalCount : 전체 데이터 개수
+					 
+		데이터 출력부분
+			<c:forEach var="board" items="${map.list }">
+			
+		페이지당 출력개수 선택 만들기
+			페이지가 이동하더라도 출력개수는 유지돼야함
+			
+			<!-- 페이지당 출력개수 설정하는 select -->
+			<div class="box-header with-border">
+				<span>목록개수</span>
+				<select id="count" class="form-control">
+					<option value="5" <c:out value="${map.pageMaker.criteria.perPage==5?'selected':''}"/>>
+						5개씩 보기
+					</option>
+					<option value="10" <c:out value="${map.pageMaker.criteria.perPage==10?'selected':''}"/>>
+						10개씩 보기
+					</option>
+					<option value="15" <c:out value="${map.pageMaker.criteria.perPage==15?'selected':''}"/>>
+						15개씩 보기
+					</option>
+					<option value="20" <c:out value="${map.pageMaker.criteria.perPage==20?'selected':''}"/>>
+						20개씩 보기
+					</option>
+				</select>
+			</div>
+			
+		스크립트
+			// 출력개수 선택했을 때
+			document.getElementById("count").addEventListener("change",function(){
+				location.href = 'list?page=${map.pageMaker.criteria.page}&perPage=' + this.value;
+			});
+			
+		페이지번호 출력 만들기
+			<!-- 페이지 번호 출력영역 -->
+			<div class="box-footer text-center">
+				<ul class="pagination">
+					<c:if test="${map.pageMaker.totalCount>0 }">
+						<!-- 이전링크 -->
+						<c:if test="${map.pageMaker.prev }">
+							<li><a href="list?page=${map.pageMaker.startPage-1}&perPage=${map.pageMaker.criteria.perPage}">이전</a></li>
+						</c:if>
+						<!-- 페이지번호 -->
+						<c:forEach var="idx" begin="${map.pageMaker.startPage }" end="${map.pageMaker.endPage }">
+							<li
+							<c:out value="${map.pageMaker.criteria.page==idx?'class=active':'' }"/>
+							><a href="list?page=${idx }&perPage=${map.pageMaker.criteria.perPage}">${idx }</a></li>
+						</c:forEach>
+						<!-- 다음 링크 -->
+						<c:if test="${map.pageMaker.next }">
+							<li><a href="list?page=${map.pageMaker.endPage+1}&perPage=${map.pageMaker.criteria.perPage}">다음</a></li>
+						</c:if>
+					</c:if>
+				</ul>
+			</div>
+			
+		글제목을 눌렀을 때 링크 수정
+			<a href="detail?bdcode=${board.bdcode}&page=${map.pageMaker.criteria.page}&perPage=${map.pageMaker.criteria.perPage}">${board.subject}</a>
+			
+	BoardController의 상세보기 메소드 수정
+		현재페이지번호와 페이지당출력개수를 criteria에 저장하고 다음페이지에 자동으로 전달
+		
+		@RequestMapping(value="board/detail", method=RequestMethod.GET)
+		public String detail(HttpServletRequest request, Model model, Criteria criteria) {
+			Board board = boardService.detail(request);
+			model.addAttribute("board", board);
+			model.addAttribute("criteria", criteria);
+			return "board/detail";
+		}
+		
+	detail.jsp 파일의 이벤트 수정
+		목록버튼의 링크 수정
+			location.href = "list?page=${criteria.page}&perPage=${criteria.perPage}";
+			
+		삭제버튼의 링크 수정
+			location.href = "delete?bdcode=${board.bdcode}&page=${criteria.page}&perPage=${criteria.perPage}";
+		
+		수정버튼의 링크 수정
+			location.href = "update?bdcode=${board.bdcode}&page=${criteria.page}&perPage=${criteria.perPage}";
+			
+	BoardController의 수정하기와 삭제하기 메소드 수정
+		@RequestMapping(value="board/update", method=RequestMethod.POST)
+		public String update(HttpServletRequest request, RedirectAttributes attr, Criteria criteria) {
+			boardService.update(request);
+			int bdcode = Integer.parseInt(request.getParameter("bdcode"));
+			return "redirect:detail?bdcode="+bdcode + "&page="+criteria.getPage() + "&perPageNum="+criteria.getPerPage();
+		}
+		
+		@RequestMapping(value="board/delete", method=RequestMethod.GET)
+		public String delete(HttpServletRequest request, RedirectAttributes attr, Criteria criteria) {
+			boardService.delete(request);
+			attr.addFlashAttribute("msg", "게시글이 삭제되었습니다.");
+			return "redirect:list?page="+criteria.getPage() + "&perPageNum="+criteria.getPerPage();
+		}
+		
+	update.jsp 파일의 form에 현제 페이지번호와 페이지당 출력개수를 hidden으로 추가
+		<input type="hidden" name="page" value="${criteria.page}" />
+		<input type="hidden" name="perPageNum" value="${criteria.perPage}" />
+			
+			

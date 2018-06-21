@@ -1,0 +1,149 @@
+그래프 출력
+	로그파일을 읽어서 ip별 트래픽 합을 그래프로 만들기
+		요청 url은 traffic
+		메인페이지에서 ajax로 호출 - RestController에서 처리
+		
+		JSONController에서 loginlog 요청이 왔을 때 처리 메소드
+			@RequestMapping(value="loginlog", method=RequestMethod.GET)
+			public Map<String, Object> loginlog(){
+				return memberService.loginlog();
+			}
+			
+		MemberService 인터페이스에 loginlog 메소드 선언
+			public Map<String, Object> loginlog();
+			
+		MemberServiceImpl 클래스에서 구현
+			@Autowired
+			private ServletContext servletContext;
+			
+			@Override
+			public Map<String, Object> loginlog() {
+				Map<String, Object> map = new HashMap<>();
+				try {
+					// 로그파일 읽기
+					BufferedReader br = new BufferedReader(new FileReader(servletContext.getRealPath("/resources/login_log.txt")));
+					while(true) {
+						String line = br.readLine();
+						if(line == null) {
+							break;
+						}
+						String[] ar = line.split(" ");
+						String nickname = ar[0];
+						if(map.get(nickname)==null) {
+							map.put(nickname, 1);
+						}else {
+							map.put(nickname, (int)map.get(nickname)+1);
+						}
+					}
+				} catch(Exception e) {
+					System.out.println(e.getMessage());
+					e.printStackTrace();
+				}
+				return map;
+			}
+			
+		home.jsp 파일에 기존 이미지를 빼고 그래프 출력
+			<div class="row">
+			<div style="text-align:center">
+				<!-- <img src="./resources/img/main_img.jpg" width="30%"> -->
+				<div style="margin:auto; width:80%;" id="chart"></div>
+			</div>
+			
+		jqplot으로 그래프를 그리기 위해 필요한 리소스 추가
+			<!--[if lt IE 9]><script language="javascript" type="text/javascript" src="excanvas.js"></script><![endif]-->
+			<script language="javascript" type="text/javascript" src="resources/jqplot/jquery.jqplot.min.js"></script>
+			<script language="javascript" type="text/javascript" src="resources/jqplot/excanvas.js"></script>
+			<link rel="stylesheet" type="text/css" href="resources/jqplot/jquery.jqplot.min.css" />
+			
+		ajax를 이용해 데이터를 받아와서 그래프로 출력
+			<script>
+			// ajax를 이용해 log 파일을 읽어서 그래프로 출력
+			$.ajax({
+				url: 'loginlog',
+				data:{},
+				dataType: 'json',
+				success:function(data){
+					var count = new Array();
+					var nickname = new Array();
+					for(key in data){
+						nickname.push(key);
+						count.push(data[key]);
+					}
+					
+					$.jqplot.config.enablePlugins = true;         
+					plot1 = $.jqplot('chart', [count], {
+						// Only animate if we're not using excanvas (not in IE 7 or IE 8)..
+						animate: !$.jqplot.use_excanvas,
+						seriesDefaults:{
+							renderer:$.jqplot.BarRenderer,
+							pointLabels: { show: true }
+						},
+						axes: {
+							xaxis: {
+								renderer: $.jqplot.CategoryAxisRenderer,
+								ticks: nickname
+							},
+							yaxis: {
+								tickOptions: {formatString: '%d'}
+							}
+						},
+						highlighter: { show: false }
+					});
+				 
+					$('#chart').bind('jqplotDataClick', 
+						function (ev, seriesIndex, pointIndex, data) {
+							$('#info1').html('series: '+seriesIndex+', point: '+pointIndex+', data: '+data);
+						}
+					);
+				}
+			});
+			</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

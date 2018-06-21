@@ -1,0 +1,210 @@
+식당 고르기
+테이블 생성
+-- restaurant 테이블
+create table restaurant(
+rstcode number(5) primary key,
+rstname varchar2(100) not null,
+foodstyle varchar2(10),
+distance number(5),
+tasty number(2),
+price number(5),
+totalscore number(2,1),
+description varchar2(200),
+membercode varchar2(6) references member(membercode) on delete cascade
+);
+
+
+header.jsp 파일에 드롭다운메뉴로 링크 추가
+	<li role="presentation" id="lunch">
+		<ul class="nav nav-tabs">
+			<li role="presentation" class="dropdown">
+				<a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-expanded="false">
+						LUNCH! <span class="caret"></span>
+				</a>
+				<ul class="dropdown-menu" role="menu">
+					<li><a href="${pageContext.request.contextPath }/lunch/select">뽑기</a></li>
+					<li><a href="${pageContext.request.contextPath }/lunch/register">등록하기</a></li>
+					<li><a href="${pageContext.request.contextPath }/lunch/review">평가하기</a></li>
+				</ul>
+			</li>
+		</ul>
+	</li>
+	
+식당고르기 작업도 로그인이 됐을 때만 할 수 있도록 설정
+	servlet-context.xml파일의 권한 인터셉터에 추가
+		<mapping path="/lunch/register"/>
+		<mapping path="/lunch/select"/>
+		<mapping path="/lunch/review"/>
+	
+레스토랑 테이블에 작업할 mapper 파일
+	<?xml version="1.0" encoding="UTF-8"?>
+	<!DOCTYPE mapper
+	PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+	<mapper namespace="restaurant">
+
+	</mapper>
+	
+레스토랑 테이블을 표현할 VO 클래스
+	package kr.co.lunch.domain;
+
+	public class Restaurant {
+		private int rstcode, distance, tasty, price;
+		private double totalscore;
+		private String rstname, foodstyle, description, membercode;
+		public int getRstcode() {
+			return rstcode;
+		}
+		public void setRstcode(int rstcode) {
+			this.rstcode = rstcode;
+		}
+		public int getDistance() {
+			return distance;
+		}
+		public void setDistance(int distance) {
+			this.distance = distance;
+		}
+		public int getTasty() {
+			return tasty;
+		}
+		public void setTasty(int tasty) {
+			this.tasty = tasty;
+		}
+		public int getPrice() {
+			return price;
+		}
+		public void setPrice(int price) {
+			this.price = price;
+		}
+		public double getTotalscore() {
+			return totalscore;
+		}
+		public void setTotalscore(double totalscore) {
+			this.totalscore = totalscore;
+		}
+		public String getRstname() {
+			return rstname;
+		}
+		public void setRstname(String rstname) {
+			this.rstname = rstname;
+		}
+		public String getFoodstyle() {
+			return foodstyle;
+		}
+		public void setFoodstyle(String foodstyle) {
+			this.foodstyle = foodstyle;
+		}
+		public String getDescription() {
+			return description;
+		}
+		public void setDescription(String description) {
+			this.description = description;
+		}
+		public String getMembercode() {
+			return membercode;
+		}
+		public void setMembercode(String membercode) {
+			this.membercode = membercode;
+		}
+		@Override
+		public String toString() {
+			return "Restaurant [rstcode=" + rstcode + ", distance=" + distance + ", tasty=" + tasty + ", price=" + price
+					+ ", totalscore=" + totalscore + ", rstname=" + rstname + ", foodstyle=" + foodstyle + ", description="
+					+ description + ", membercode=" + membercode + "]";
+		}
+		
+	}
+
+	
+레스토랑 테이블에 작업할 Dao 클래스
+	package kr.co.lunch.dao;
+
+	import org.apache.ibatis.session.SqlSession;
+	import org.springframework.stereotype.Repository;
+
+	@Repository
+	public class RestaurantDao {
+		@Autowired
+		private SqlSession sqlSession;
+	}
+
+식당 관련 메소드를 소유한 Servivce 인터페이스
+	package kr.co.lunch.service;
+
+	public interface RestaurantService {
+
+	}
+
+	
+Service 인터페이스를 구현하는 ServiceImpl 클래스
+	package kr.co.lunch.service;
+
+	import org.springframework.stereotype.Service;
+
+	import kr.co.lunch.dao.RestaurantDao;
+
+	@Service
+	public class RestaurantServiceImpl implements RestaurantService {
+		@Autowired
+		private RestaurantDao restaurantDao;
+	}
+	
+식당 관련 요청을 처리할 Controller 클래스
+	package kr.co.lunch;
+
+	import org.springframework.stereotype.Controller;
+
+	import kr.co.lunch.service.RestaurantService;
+
+	@Controller
+	public class RestaurantController {
+		@Autowired
+		private RestaurantService restaurantService;
+
+	}
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

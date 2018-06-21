@@ -1,0 +1,415 @@
+배운 내용을 가지고 작업할 때
+	Project 생성
+
+	필요한 의존성 라이브러리 설정
+		Oracle
+			오라클DB 사용
+		Spring-jdbc
+			스프링에서 DB 사용
+		MyBatis, MyBatis-Spring
+			sql을 mapper 파일을 이용해 구현
+		Hibernate
+			테이블의 컬럼과 VO클래스의 변수를 매핑시켜서 sql을 간단하게 구현
+			
+		JSON
+			JSON 생성, 파싱
+			안드로이드에서 사용
+			
+		AOP
+		
+	web.xml
+		파라미터 인코딩 설정
+		
+	servlet-context.xml
+		default servlet handler
+		
+	VO 생성
+	[mapper 파일] - MyBatis에서만
+	Dao
+	Service, ServiceImpl
+	Controller
+	View
+	
+	테이블 CRUD
+		게시판+회원
+	
+여기까지가 minimum
+	
+	Interceptor, AOP
+		
+
+
+	
+점심메뉴 고르기 앱
+	웹, 모바일앱(모바일웹을 뷰에 출력)
+	가게의 빈자리 정보도 알수 있도록
+	선택했던 식당 데이터를 쌓아서 적정 수준이 쌓이면 식당을 추천
+	모바일앱에서 일부화면에 안드로이드뷰를 사용해서 흔들면 선택되도록
+	작성자를 클릭하면 쪽지, 메일 보낼수 있게
+	샘플식당은 주변에서 검색해서 추가?
+	지도앱에서 식당을 검색해서 추가하고 검색해도 안나오는 식당은 직접추가
+	
+	DB - Oracle, MySQL, MS-SQL 모두 사용해보기
+	개발환경 명시
+	
+	json, xml 파싱
+	jqplot - 그래프 그리기
+	
+관리자 이메일
+	lunch00lunch@gmail.com
+	rhksflwk123!@#
+	
+	
+테이블 구조
+	member 사용자
+		string email-primary key
+		string pw
+		string nickname - unique
+		string location - 지도에서 정확한 위치
+		string usercode - 랜덤하게 알파벳 6자리 생성, unique
+		
+	restaurant 식당
+		int rstcode-primary key - 시퀀스로 자동생성
+		string rstname
+		string foodtype
+		int distance
+		int tasty
+		int price
+		int count
+		double totalscore - 거리, 맛, 가격대를 종합해서 자동계산
+		string description
+		string usercode-foreign key-user
+		
+	board 게시판
+		int bdcode-primary key - 시퀀스로 자동생성
+		string subject
+		string content
+		string email-foreign key-user
+		string nickname
+	
+	reply 댓글
+		int rpcode-primary key - 시퀀스로 자동생성
+		string rptext
+		string eamil-foreign key-user
+		string nickname
+		int bdcode-foreign key-board
+
+뷰
+	로그인 화면
+	
+	회원가입 화면
+	
+	메인화면(로그인 후)
+		식당 검색
+		식당 입력
+		식당 평가
+		게시판
+	
+	식당 검색 화면
+		총점, 거리, 맛(점수), 가격대 범위를 지정
+			일부만 선택 가능
+		음식종류 선택(다수선택 가능)
+		식당개수 선택(1~3)
+		
+		결과
+			총점, count에 따라 확률을 높여서 랜덤하게 출력
+			식당이름, 총점, 음식종류, 맛점, 가격대 표시해주고
+			식당이름에 지도검색 링크 -> 네이버나 다음지도로
+			선택한 식당 count +1
+		
+	식당 입력 화면
+		식당 이름(입력), 음식종류(선택)
+		거리, 맛, 가격대 선택
+		
+	식당 평가 화면
+		식당이름(선택)
+		거리, 맛, 가격대 선택
+		
+	게시판
+		글목록
+		글쓰기
+		
+		상세보기
+			작성자, 제목, 내용
+			수정, 삭제, 목록보기, 글쓰기
+			
+			댓글
+				내용, 작성자
+				수정, 삭제
+
+DB 생성
+	system 계정은 모든 테이블에 접근하기 때문에 나중에 힘듦...
+	계정 새로 만들어서 하는게 좋겠음
+	
+	
+
+DB에 member, restaurant, board, reply 테이블 생성
+
+-- DB에서 사용할 계정 생성
+-- jaehoon / jaehoon
+
+GRANT CONNECT,RESOURCE,UNLIMITED TABLESPACE TO jaehoon IDENTIFIED BY jaehoon;
+ALTER USER jaehoon DEFAULT TABLESPACE USERS;
+ALTER USER jaehoon TEMPORARY TABLESPACE TEMP;
+
+select * from dba_users;
+select * from all_users;
+
+-- member 테이블
+create table member(
+email varchar2(50) primary key,
+pw varchar2(100) not null,
+nickname varchar2(30) unique,
+location varchar2(50),
+membercode varchar2(6) unique
+);
+
+select * from member;
+desc member;
+drop table member;
+delete
+from member
+where email = 'pcbvnk92@naver.com';
+
+-- restaurant 테이블
+create table restaurant(
+rstcode number(5) primary key,
+rstname varchar2(100) not null,
+foodstyle varchar2(10),
+distance number(5),
+tasty number(2),
+price number(5),
+totalscore number(2),
+description varchar2(200),
+membercode varchar2(6) references member(membercode) on delete cascade
+);
+
+select * from restaurant;
+desc restaurant;
+drop table restaurant;
+
+-- rstcode를 생성할 시퀀스
+create sequence rstcode;
+drop sequence rstcode;
+
+-- board 게시판
+create table board(
+bdcode number(5) primary key,
+subject varchar2(200) not null,
+content clob,
+regdate date default sysdate,
+readcnt number(10) default 0,
+ip varchar2(100),
+email varchar2(50) references member(email) on delete set null,
+nickname varchar2(30)
+);
+
+select * from board;
+drop table board;
+
+-- bdcode를 생성할 시퀀스
+create sequence bdcode;
+drop sequence bdcode;
+
+-- reply 게시판
+create table reply(
+rpcode number(10) primary key,
+rptext varchar2(500),
+email varchar2(50) references member(email) on delete set null,
+nickname varchar2(30),
+bdcode number(5) references board(bdcode) on delete cascade,
+regdate date default sysdate
+);
+
+select * from reply;
+drop table reply;
+select table_name from all_tables;
+
+commit;
+	
+
+Spring MVC 프로젝트 생성
+java, spring 버전 변경
+pom.xml
+	repositories 추가
+	사용할 의존성 라이브러리 추가
+		oracle, mybatis-spring, mybatis, spring-jdbc, json, 파일업로드, 암호화, json, aop, 이메일관련
+web.xml
+	파라미터 인코딩 필터 설정
+	
+servlet-context.xml
+	컨트롤러가 처리 못하는 요청은 WAS가 하도록 설정
+		<default-servlet-handler/>
+		
+src/text/java/kr.co.lunch.Test 클래스에서 DB 연결 테스트
+
+모든 jsp 파일에서 사용할 파일을 views/include 경로에 생성
+	상단 파일 header.jsp
+		<%@ page language="java" contentType="text/html; charset=UTF-8"
+			pageEncoding="UTF-8"%>
+		<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+		<!DOCTYPE html>
+		<html>
+		<head>
+		<meta charset="UTF-8">
+		<title>Spring MVC Board</title>
+		<!-- 현재 기기의 너비에 맞춰서 출력, 기본크기 1배, 최대 크기 1배, 확대축소 못하게
+			모바일 웹 애플리케이션에서 주로 이용하는 옵션 -->
+		<meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
+		<!-- 부트스트랩 스타일시트 파일링크
+			contextPath는 절대경로를 만들기 위해서 추가함 -->
+		<link href="${pageContext.request.contextPath}/resources/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
+		<!-- IE9 이하 버전에서 HTML5의 시멘틱 태그를 사용하기 위한 설정 -->
+		<!--[if lt IE 9]>
+				<script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+				<script src="https://oss.maxcdn.comrespond/1.4.2respond.min.js"></script>
+			<![endif]-->
+
+		</head>
+		<!-- jQuery설정 -->
+		<script src="${pageContext.request.contextPath}/resources/jquery/jquery.1.12.4.min.js"></script>
+		<body class="skin-blue sidebar-mini" style="margin:auto 2%;">
+			<div class="wrapper">
+				<header class="main-header">
+					<div class="page-header">
+						<h1><a href="${pageContext.request.contextPath }" style="color:black; text-decoration:none;">Spring MVC 게시판</a></h1>
+					</div>
+				</header>
+			</div>
+			<aside class="main-sidebar">
+				<section class="sidebar">
+					<ul class="nav nav-tabs">
+						<li role="presentation" class="active"><a href="#">메인</a></li>
+						<li role="presentation"><a href="${pageContext.request.contextPath }/board/list?page=1">목록보기</a></li>
+						<li role="presentation"><a href="${pageContext.request.contextPath }/board/write">게시물 쓰기</a></li>
+						<c:if test="${user == null }">
+							<li role="presentation"><a href="${pageContext.request.contextPath}/user/register">회원가입</a></li>
+							<li role="presentation"><a href="${pageContext.request.contextPath}/user/login">로그인</a></li>
+						</c:if>
+						<c:if test="${user != null }">
+							<li role="presentation"><img width="20px" src ="${pageContext.request.contextPath}/userimage/${user.image}">${user.nickname }님 </li>
+							<li role="presentation"><a href="${pageContext.request.contextPath}/user/logout">로그아웃</a></li>
+						</c:if>
+					</ul>
+				</section>
+			</aside>
+			<div>
+			
+	하단 파일 footer.jsp
+		<%@ page language="java" contentType="text/html; charset=UTF-8"
+			pageEncoding="UTF-8"%>
+			  <footer class="main-footer">
+				<div class="pull-right hidden-xs">
+				  <b>Version</b> 1.0
+				</div>
+				<strong>Copyright &copy;<a href="${pageContext.request.contextPath}">Spring MVC Board</a></strong> All rights reserved.
+			  </footer>
+			</div>
+			<script src="${pageContext.request.contextPath}/resources/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
+		  </body>
+		</html>
+
+에러페이지 설정
+	kr.co.lunch 패키지 내에서 예외가 발생하면 출력되는 파일을 설정하는 클래스
+		kr.co.lunch.util.CommonExceptionAdvice
+		// kr.co.lunch 패키지에 있는 Controller에서 예외가 발생하면 호출되는 클래스로 설정
+		@ControllerAdvice("kr.co.lunch")
+		public class CommonExceptionAdvice {
+			// 예외가 발생하면 호출되는 메소드
+			public ModelAndView error(Exception e) {
+				ModelAndView mav = new ModelAndView();
+				// 뷰 이름 설정
+				mav.setViewName("/error/error");
+				// 전달할 데이터
+				mav.addObject("exception", e);
+				
+				return mav;
+			}
+		}
+
+	web.xml 파일에 404에러가 발생했을 때 보여질 페이지 설정
+		<!-- 404에러가 발생했을 때 보여질 페이지를 설정 -->
+		<error-page>
+			<error-code>404</error-code>
+			<location>/WEB-INF/views/error/404code.jsp</location>
+		</error-page>
+		
+	views/error/error.jsp 파일을 생성
+		<%@ page language="java" contentType="text/html; charset=UTF-8"
+			pageEncoding="UTF-8"%>
+		<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+		<!-- 이 페이지가 에러가 발생했을 때 출력되는 페이지라는 설정 -->
+		<%@ page isErrorPage="true" %>    
+		<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+		<html>
+		<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<!-- IE는 에러 내용이 512바이트가 안되면 자체 페이지를 출력하므로
+		강제로 512바이트 이상을 만들기 위한 코드 -->
+		<meta name="dummy1" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy2" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy3" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy4" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy5" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy6" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy7" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy8" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy9" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy10" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy11" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy12" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy13" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy14" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy15" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy16" content="에러페이지 에러페이지 에러페이지" />
+		<title>예외발생</title>
+		</head>
+		<body>
+			<%@ include file="../include/header.jsp"%>
+			<h4>${exception.getMessage()}</h4>
+			<ul>
+				<c:forEach var="stack" items="${exception.getStackTrace() }">
+					<li>${stack.toString()}</li>
+				</c:forEach>
+			</ul>
+			<%@ include file="../include/footer.jsp"%>
+		</body>
+		</html>
+
+	error 디렉토리에 404code.jsp 파일 생성
+		<%@ page language="java" contentType="text/html; charset=UTF-8"
+			pageEncoding="UTF-8"%>
+		<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+		<!-- 이 페이지가 에러가 발생했을 때 출력되는 페이지라는 설정 -->
+		<%@ page isErrorPage="true" %>    
+		<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+		<html>
+		<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<!-- IE는 에러 내용이 512바이트가 안되면 자체 페이지를 출력하므로
+		강제로 512바이트 이상을 만들기 위한 코드 -->
+		<meta name="dummy1" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy2" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy3" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy4" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy5" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy6" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy7" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy8" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy9" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy10" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy11" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy12" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy13" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy14" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy15" content="에러페이지 에러페이지 에러페이지" />
+		<meta name="dummy16" content="에러페이지 에러페이지 에러페이지" />
+		<title>예외발생</title>
+		</head>
+		<body>
+			<%@ include file="../include/header.jsp"%>
+			<h4>URL이 잘못되었습니다.<br/>
+				빠른 시간에 복구하겠습니다.</h4>
+			<%@ include file="../include/footer.jsp"%>
+		</body>
+		</html>

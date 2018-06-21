@@ -1,0 +1,489 @@
+회원관리 구현
+	DB에 member 테이블 생성
+		-- member 테이블
+		create table member(
+			email varchar2(50) primary key,
+			pw varchar2(100) not null,
+			nickname varchar2(30) unique,
+			location varchar2(50),
+			membercode varchar2(6) unique
+		);
+
+	MyBatis 사용을 위한 설정파일
+		src/main/resources/mybatis/mybatis-config.xml
+	
+	member 테이블에 SQL작업을 수행할 mapper 파일
+		src/main/resources/mybatis/mappers/member.xml
+		
+	member 테이블을 표현할 수 있는 VO클래스
+		kr.co.lunch.domain.Member
+		
+	member 테이블과 작업할 Dao 클래스
+		kr.co.lunch.dao.MemberDao
+		
+	회원관리 관련 요청 처리를 위한 Controller 클래스
+		kr.co.lunch.MemberController
+			
+	회원가입
+		home.jsp 파일에 회원가입 링크 생성
+			<a href="member/register">회원가입</a>
+		
+		MemberController클래스에 member/register 요청이 왔을 때 처리
+			@RequestMapping(value="member/register", method=RequestMethod.GET)
+			public String register(Model model) {
+				return "member/register";
+			}
+			
+		views/member/register.jsp 파일
+			<h3>회원가입</h3>
+			<form id="registerform"method="post" onsubmit="return check()">
+				<p align="center">
+				<table border="1" width="50%" height="80%" align='center'>
+					<tr>
+						<td colspan="3" align="center"><h2>회원 가입</h2></td>
+					</tr>
+					<tr>
+						<td bgcolor="#f5f5f5"><font size="2">이메일</font></td>
+						<td>
+							<input type="email" name="email" id="email" size="30" 
+							maxlength=50 onblur="confirmId()" required="required" />
+							<div id="emailDiv"></div>
+						</td>
+					</tr>
+
+					<tr>
+						<td bgcolor="#f5f5f5"><font size="2">비밀번호</font></td>
+						<td> <input type="password" name="pw" id="pw"
+							size="20" required="required" />
+						</td>
+					</tr>
+					<tr>
+						<td bgcolor="#f5f5f5"><font size="2">비밀번호 확인</font></td>
+						<td> <input type="password" id="pwconfirm" size="20" required="required" />
+						</td>
+					</tr>
+					<tr>
+						<td width="17%" bgcolor="#f5f5f5"><font size="2">이름</font></td>
+						<td>
+							<input type="text" name="nickname" size="20" pattern="([a-z, A-Z, 가-힣]){2,}"
+							required="required" title="닉네임은 문자 2자 이상입니다." />
+						</td>
+					</tr>
+					<tr>
+						<td align="center" colspan="3">
+							<p></p> <input type="submit" value="회원가입" class="btn btn-warning" />
+							<input type="button" value="메인으로" class="btn btn-success"
+							onclick="javascript:window.location='../'">
+							<p></p>
+						</td>
+					</tr>
+				</table>
+			</form>
+			
+		이메일 중복체크
+			mappers/member.xml 파일에 이메일을 가지고 이메일 하나 찾아오는 sql
+				<!-- email을 가지고 email 하나를 찾아오는 sql -->
+				<select id="emailchecck" parameterType="java.lang.String" resultType="java.lang.String">
+					select email
+					from member
+					where email=#{email}
+				</select>
+				
+			MemberDao 클래스에 이메일중복검사 메소드
+				public String emailcheck(String email) {
+					return sqlSession.selectOne("member.emailcheck", email);
+				}
+				
+			MemberService 인터페이스에 이메일중복검사 메소드 선언
+				public String emailcheck(HttpServletRequest request);
+			MemberServiceImpl 클래스에서 구현
+				@Override
+				public String emailcheck(HttpServletRequest request) {
+					// 파라미터
+					String email = request.getParameter("email");
+					return memberDao.emailcheck(email);
+				}
+				
+			json이나 String을 리턴하는 JSONController 클래스에 이메일중복체크 요청이 왔을 때 결과를 json으로 리턴하는 메소드
+				이메일 중복체크는 클라이언트에서 ajax로 처리
+				@RequestMapping(value="user/emailcheck", method=RequestMethod.GET)
+				public Map<String, Object> emailChech(HttpServletRequest request, Model modell){
+					String email = memberService.emailcheck(request);
+					// 리턴할 Map 생성 
+					Map<String, Object> map = new HashMap<String, Object>();
+					// result라는 키에 email이 null 인지 저장
+					// false 면 존재하는 email, true면 존재하지 않는 email
+					map.put("result", email==null);
+					return map;
+				}
+				
+			register.jsp 파일에 이메일중복체크를 ajax로 처리할 스크립트
+				//이메일 중복검사 통과여부를 저장할 변수
+				//전송버튼을 눌렀을 때 이 값이 false 면 전송하지 않을것
+				var emailcheck = false;
+
+				//이메일 중복체크 함수
+				function confirmId(){
+					email = document.getElementById("email").value;
+					emaildiv = document.getElementById("emailDiv");
+					$.ajax({
+						url:'emailcheck',
+						data:{'email':email},
+						dataType:'json',
+						success:function(data){
+							//alert(data);
+							if(data.result==true){
+								// 이메일이 중복되지 않은 경우
+								emailcheck = true;
+								emaildiv.innerHTML = "사용 가능한 이메일입니다.";
+								emaildiv.style.color = 'blue';
+							}else{
+								// 이메일이 중복된 경우
+								emaildiv.innerHTML = "중복된 이메일입니다.";
+								emaildiv.style.color = 'red';
+								emailcheck = false;
+							}
+						}
+					});
+				}
+			
+		회원가입 버튼을 눌렀을 때 처리
+			// form에서 submit 했을 때 호출되는 함수
+			// false를 리턴하면 서버로 전송되지 않음
+			function check(){
+				// emailcheck의 값이 false면 서버로 전송하지 않음
+				if(emailcheck == false){
+					document.getElementById("emailDiv").innerHTML = "이메일 중복검사를 통과하지 못했습니다.";
+					document.getElementById("emailDiv").styel.color = "red";
+					return false;
+				}
+				// 비밀번호에 입력한 값과 비밀번호 확인 란에 입력한 값이 일치하지 않으면 전송하지 않음
+				var pw = document.getElementById("pw").value;
+				var pwconfirm = document.getElementById("pwconfirm").value;
+				if(pw != pwconfirm){
+					alert("비밀번호가 일치하지 않습니다!");
+					return false;
+					document.getElementById("pw").focus();
+				}
+				// 비밀번호는 숫자, 영문자, 특수문자 1개이상으로 8자 이상
+				// 정규식 이용
+				var p1 = /[0-9]/;
+				var p2 = /[a-zA-Z]/;
+				var p3 = /[~!@#$%^&*()]/;
+				if(!p1.test(pw) || !p2.test(pw) || !p3.test(pw) || pw.length<8){
+					alert("비밀번호는 8자 이상이어야 하고, 숫자, 영문자, 특수문자를 포함해야합니다."
+							+"\n사용 가능한 특수문자: ~!@#$%^&*()");
+					return false;
+					document.getElementById("pw").focus();
+				}
+			}
+			
+		member.xml 파일에 회원가입을 위한 SQL
+			<insert id="insert" parameterType="Member">
+				insert into member(email, pw, nickname, location, usercode)
+				values(#{email}, #{pw}, #{nickname}, #{location}, #{usercode})
+			</insert>
+			
+		MemberDao의 회원가입 메소드에서 sql 호출
+			public void register(Member member) {
+				sqlSession.insert("member.insert",member);
+			}
+		
+		member.xml 파일에 membercode 하나를 찾아오는 sql
+			<!-- membercode를 가지고 membercode 하나를 찾아오는 sql -->
+			<select id="membercodecheck" parameterType="java.lang.String" resultType="java.lang.String">
+				select mmebercode
+				from member
+				where membercode = #{membercode}
+			</select>
+			
+		MemberDao 클래스에 멤버코드 중복체크 메소드
+			public String membercodecheck(String membercode) {
+				return sqlSession.selectOne("member.membercodecheck",membercode);
+			}
+			
+		MemberSerivce 인터페이스에 회원가입 메소드 선언
+			public void register(HttpServletRequest request);
+		MemberServiceImpl 클래스에서 구현
+			@Override
+			public void register(HttpServletRequest request) {
+				// 파라미터 읽기
+				String email = request.getParameter("email");
+				String pw = request.getParameter("pw");
+				String nickname = request.getParameter("nickname");
+				
+				// Dao의 파라미터 만들기
+				Member member = new Member();
+				try {
+					member.setEmail(email);
+					// 패스워드는 암호화해서 저장
+					member.setPw(BCrypt.hashpw(pw, BCrypt.gensalt(10)));
+					member.setNickname(nickname);
+					// 사용자코드 만들기
+					StringBuilder temp = new StringBuilder();
+					String membercode = "";
+					Random rnd = new Random();
+					while(true) {
+						for (int i = 0; i < 6; i = i + 1) {
+							int lowUpper = rnd.nextInt(2);
+							switch (lowUpper) {
+							case 0:
+								// 소문자
+								temp.append((char) ((int) (rnd.nextInt(26)) + 97));
+								break;
+							case 1:
+								// 대문자
+								temp.append((char) ((int) (rnd.nextInt(26)) + 65));
+								break;
+							}
+						}
+						membercode = temp.toString(); 
+						// 사용자코드 중복검사
+						if(memberDao.membercodecheck(membercode)==null) {
+							break;
+						} else {
+							temp = new StringBuilder();
+						}
+					}
+					member.setMembercode(membercode);
+
+					//Dao의 메소드 호출
+					memberDao.register(member);
+				} catch (Exception e) {
+					System.out.println("회원가입 실패"+e.getMessage());
+					e.printStackTrace();
+				}
+			}
+			
+로그인 처리
+	home.jsp 파일에 로그인 링크 추가
+	로그인정보는 session에 저장돼있음
+		로그인 안돼있는 경우는 회원가입, 로그인
+		
+		<c:if test="${member == null}">
+			<div class="box-header with-border">
+				<a href="member/login"><h3 class="box-title">로그인</h3></a>
+			</div>	
+			<div class="box-header with-border">
+				<a href="member/register"><h3 class="box-title">회원가입</h3></a>
+			</div>
+		</c:if>	
+		
+	MemberController 에 member/login 요청 처리
+		member/login.jsp 파일로 forwarding
+		
+		@RequestMapping(value="member/login", method=RequestMethod.GET)
+		public String login(Model model) {
+			return "member/login";
+		}
+		
+	views/member/login.jsp 파일
+		<div class="container">
+			<div class="row">
+				<div class="col-md-4"></div>
+				<div class="col-md-4">
+					<div class="login-box well">
+						<form accept-charset="UTF-8" role="form" method="post"
+							action="login">
+							<legend>로그인</legend>
+							<div style='color: red'>${msg}</div>
+							<div class="form-group">
+								<label for="username-email">이메일</label> <input type="email"
+									name="email" id="email" required="required"
+									placeholder="이메일을 입력하세요" class="form-control" />
+							</div>
+							<div class="form-group">
+								<label for="password">비밀번호</label> <input type="password"
+									name="pw" id="pw" placeholder="비밀번호를 입력하세요" class="form-control" />
+							</div>
+							<div class="form-group">
+								<input type="submit"
+									class="btn btn-primary btn-login-submit btn-block m-t-md"
+									value="로그인" />
+							</div>
+
+							<div class="form-group">
+								<a href="register" class="btn btn-warning btn-block m-t-md">회원가입</a>
+							</div>
+
+							<div class="form-group">
+								<a href="../" class="btn btn-success btn-block m-t-md">메인으로</a>
+							</div>
+						</form>
+					</div>
+				</div>
+				<div class="col-md-4"></div>
+			</div>
+		</div>
+		
+	member.xml 파일에 로그인 처리를 위한 sql
+		<!-- 로그인처리 sql: email을 가지고 데이터1개 찾아오기 -->
+		<select id="login" parameterType="java.lang.String" resultType="Member">
+			select *
+			from member
+			where email=#{email}
+		</select>
+	
+	MemberDao 클래스에 로그인처리 메소드
+		public Member login(String email) {
+			return sqlSession.selectOne("member.login", email);
+		}
+		
+	MemberService 인터페이스에 로그인처리 메소드 선언
+		public Member login(HttpServletRequest request);
+	MemberServiceImpl 클래스에서 구현
+		@Override
+		public Member login(HttpServletRequest request) {
+			// 파라미터 읽기
+			String email = request.getParameter("email");
+			String pw = request.getParameter("pw");
+			
+			// Dao의 메소드 호출
+			Member member = memberDao.login(email);
+			if(member != null) {
+				// 비밀번호 비교
+				if(BCrypt.checkpw(pw, member.getPw())){
+					// 로그인정보에서 비밀번호는 제거
+					member.setPw("");
+				}else {
+					// 비밀번호가 다르면 모두 초기화
+					member = null;
+				}
+			}
+			return member;
+		}
+		
+	MemberController 클래스에 로그인 요청 처리
+		@RequestMapping(value="member/login", method=RequestMethod.POST)
+		public String loginPost(HttpServletRequest request, RedirectAttributes attr, HttpSession session) {
+			Member member = memberService.login(request);
+			// 로그인 성공여부
+			if(member==null) {
+				// 실패하면 다시 로그인화면
+				attr.addFlashAttribute("msg", "없는 이메일이거나 비밀번호가 틀렸습니다.");
+				return "redirect:login";
+			}else {
+				// 성공하면 메인페이지로 
+				session.setAttribute("member", member);
+				return "redirect:/";
+			}
+		}
+		
+	로그인 돼있을 경우
+		header.jsp 파일에 닉네임, 로그아웃 링크 출력
+			<li role="presentation">${member.nickname }님 </li>
+			<li role="presentation"><a href="${pageContext.request.contextPath}/member/logout">로그아웃</a></li>
+			
+		home.jsp 파일에 로그아웃 링크
+			<c:if test="${member != null}">
+				<div class="box-header with-border">
+					<a href="member/logout"><h3 class="box-title">로그아웃</h3></a>
+				</div>
+			</c:if>
+	
+	현재 위치 출력 - ajax로 JSON 데이터를 받아와서 파싱
+		카카오API 사용
+		
+		JSON파싱을 위해 라이브러리 추가
+			<!-- json 파싱 라이브러리 -->
+			<dependency>
+				<groupId>org.json</groupId>
+				<artifactId>json</artifactId>
+				<version>20171018</version>
+			</dependency>
+			
+		MemberService에 위도와 경도를 받아서 로그인 한 위치를 리턴하는 메소드 선언
+			public String location(String loc);
+		MemberServiceImpl 클래스에서 구현
+			@Override
+			public String location(String loc) {
+				String[] ar = loc.split("-");
+				String lat = ar[0];
+				String lng = ar[1];
+				String addr =
+					"https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?"
+					+ "x=" + lng + "&y=" + lat;
+		//		System.out.println(addr);
+				try {
+					// 위의 주소를 가지고 URL객체 생성
+					URL url = new URL(addr);
+					// URL 객체를 가지고 HttpConnection 객체 생성
+					HttpURLConnection con = (HttpURLConnection)url.openConnection();
+					// 인증받기
+					// 카카오 좌표 -> 주소 변환에서 키 가져와서 등록
+					con.setRequestProperty("Authorization", "KakaoAK 94a7a9300a2a7035a3de0d40bcb493ec");
+					// 옵션 설정
+					con.setConnectTimeout(10000);
+					con.setUseCaches(false);
+					// 데이터를 줄단위로 읽기
+					BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream()));
+					StringBuilder sb = new StringBuilder();
+					while(true) {
+						String line = br.readLine();
+						if(line==null) {
+							break;
+						}
+						sb.append(line);
+					}
+					br.close();
+					con.disconnect();
+		//			System.out.println(sb);
+					
+					// JSONObject 생성
+					JSONObject obj = new JSONObject(sb.toString());
+		//			System.out.println(obj);
+					JSONArray array = obj.getJSONArray("documents");
+		//			System.out.println(array);
+					JSONObject obj0 = array.getJSONObject(0);
+					String location = obj0.getString("address_name");
+		//			System.out.println(address);
+					return location;
+					
+				}catch(Exception e) {
+					System.out.println("주소 가져오기 실패: "+e.getMessage());
+					e.printStackTrace();
+				}
+				return null;
+			}
+			
+		JSONController 클래스에 location 요청 처리 메소드
+			@RequestMapping(value="location", method=RequestMethod.GET)
+			public Map<String,Object> address(String loc){
+				Map<String,Object> map = new HashMap<String, Object>();
+				// Service의 주소 가져오는 메소드 호출
+				String location = memberService.location(loc);
+				map.put("location", location);
+				return map;
+			}
+			
+		home.jsp 파일에 로그인돼있을 때 현재 위치 가져오기
+			<div id="location"></div>
+			
+			<c:if test="${member != null}">
+				<script>
+				// 현재 접속한 브라우저의 위도와 경로
+				navigator.geolocation.getCurrentPosition(function(position){
+					lat = position.coords.latitude;
+					lng = position.coords.longitude;
+					//console.log(lat+", "+lng);
+					// 위도와 경도를 하나의 문자열로 만들기
+					loc = lat + "-" + lng;
+					// alert(loc);
+					// address라는 URL에 loc를 파라미터로 넘겨서 json 타입으로 데이터를 받아오는 ajax요청
+					$.ajax({
+						url:"location",
+						data:{"loc":loc},
+						dataType:"json",
+						success:function(data){
+							document.getElementById("location").innerHTML =
+								"<div>"
+								+ data.location.split(" ")[0] + " "
+								+ data.location.split(" ")[1] + " "
+								+ data.location.split(" ")[2]
+								+ "</div>";
+							// console.log(data)
+						}
+					})
+				});
+				</script>
+			</c:if>

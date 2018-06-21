@@ -1,0 +1,444 @@
+식당 뽑기
+	뽑기 링크 -> 뽑기 페이지로 이동
+		-> 식당 목록보기 클릭 -> 전체 목록 보여주기
+		-> 식당 뽑기 클릭 -> 조건에 맞는 식당중 totalscore를 기반으로 랜덤한 식당 뽑아주기
+	
+	식당 목록보기
+		lunch/select.jsp 파일 생성
+			<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+			<%@ include file="../include/header.jsp" %>
+			<%@ include file="../include/footer.jsp" %>
+			
+		식당목록보기 버튼
+			<a class="btn btn-success" href="javascript:list()" role="button">식당 목록보기</a>
+
+		restaurant.xml 파일에 로그인한 회원의 membercode에 해당하는 식당 전체 목록을 가져오는 sql
+			<!-- 전체 식당 리스트 -->
+			<select id="list" parameterType="java.lang.String" resultType="Restaurant">
+				select * from restaurant
+				where membercode = #{membercode}
+			</select>
+
+		RestaurantDao 클래스에 메소드
+			public List<Restaurant> list(String membercode){
+				return sqlSession.selectList("restaurant.list", membercode);
+			}
+			
+		RestaurantService 인터페이스에 전체목록 메소드
+			public List<Restaurant> list(HttpServletRequest request);
+			
+		RestaurantServiceImpl 클래스에서 구현
+			@Override
+			public List<Restaurant>	list(HttpServletRequest request) {
+				String membercode = request.getParameter("membercode");
+				return restaurantDao.list(membercode);
+			}
+			
+		JSONController에서 lunch/list 요청 처리
+			@Autowired
+			private RestaurantService restaurantServivce;
+			@RequestMapping(value="lunch/list", method=RequestMethod.GET)
+			public Map<String, Object> list(HttpServletRequest request, Model model){
+				List<Restaurant> list = restaurantServivce.list(request);
+				Map<String, Object> map = new HashMap<>();
+				map.put("list", list);
+				model.addAttribute("map", map);
+				return map;
+			}
+			
+		ajax로 가져온 전체 식당목록을 출력할 div
+			<div id="list" style="display:none;"></div>
+			
+		ajax로 가져온 데이터를 출력하는 스트립트
+			// 로그인한 사용자의 식당리스트를 가져오는 함수
+			function list(){
+				document.getElementById("result").style.display = "none";
+				// ajax를 이용해 전체 식당 리스트 불러오기
+				$.ajax({
+					url: "list",
+					type : "POST",
+					data : {
+						"membercode":"${member.membercode}"
+						},
+					dataType : "json",
+					success: function(data){
+						if(listcheck(data) == true){
+							display(data);
+						}
+					}
+				});
+			}
+			// 가져온 데이터를 출력하는 함수
+			function display(data){
+				disp = "<table class='table table-bordered'><tr>";
+				disp += "<th style='width:8%;'>종류</th>";
+				disp += "<th style='width:12%;'>식당 이름</th>";
+				disp += "<th style='width:10%;'>거리</th>";
+				disp += "<th style='width:18%;'>맛</th>";
+				disp += "<th style='width:14%;'>가격대</th>";
+				disp += "<th style='width:6%;'>총점</th>";
+				disp += "<th style='width:27%;'>설명</th></tr>";
+				$(data.list).each(function(idx,item){
+					//console.log(item)
+					disp += "<tr>";
+					disp += "<td>" + item.foodstyle + "</td>";
+					disp += "<td>" + item.rstname + "</td>";
+					// distance, tasty, price는 변환해서 출력;
+					switch(item.distance){
+					case 1: 
+						distance = "멂";
+						break;
+					case 2:
+						distance = "멀지는 않음";
+						break;
+					case 3:
+						distance = "적당함";
+						break;
+					case 4:
+						distance = "가까운 편";
+						break;
+					case 5:
+						distance = "가까움";
+						break;
+					}
+					disp += "<td>" + distance + "</td>";
+					switch(item.tasty){
+					case 1:
+						tasty = "으 노맛";
+						break;
+					case 2:
+						tasty = "음? 이건 무슨맛?";
+						break;
+					case 3:
+						tasty = "흠 그냥 그렇네";
+						break;
+					case 4:
+						tasty = "오 나쁘지 않은데";
+						break;
+					case 5:
+						tasty = "헐 대박 존맛탱";
+						break;
+					}
+					disp += "<td>" + tasty + "</td>";
+					switch(item.price){
+					case 1:
+						price = "헐 넘 비쌈";
+						break;
+					case 2:
+						price = "비싸긴 하네";
+						break;
+					case 3:
+						price = "적당적당";
+						break;
+					case 4:
+						price = "싼편";
+						break;
+					case 5:
+						price = "오 싸다!";
+						break;
+					}
+					disp += "<td>" + price + "</td>";
+					disp += "<td>" + item.totalscore + "</td>";
+					disp += "<td>" + item.description + "</td>";
+					disp += "</tr>"
+				});
+				disp += "</table>"
+				document.getElementById("list").innerHTML = disp;
+				document.getElementById("list").style.display = "block";
+			}
+			// 등록된 식당이 있는지 확인하는 함수
+			function listcheck(data){
+				if(data.list == null || data.list.length==0){
+					// 등록된 식당이 하나도 없으면 등록화면으로 이동
+					document.getElementById("msg").innerHTML="등록된 식당이 없습니다.<br>확인을 누르면 식당 등록 페이지로 이동합니다.";
+					$(function() {
+						$("#dialog-message").dialog({
+							modal : true,
+							buttons : {
+								"확인" : function() {
+									$(this).dialog("close");
+									location.href="register";
+								}
+							}
+						});
+					});
+					return false;
+				}
+				return true;
+			}
+
+		
+	select.jsp 파일에서 식당 뽑기 버튼을 클릭하면 ajax를 통해 가져온 리스트에서 totalscore를 기반으로 랜덤하게 출력
+		조건을 선택해서 고를 수 있도록 설정
+		랜덤출력 알고리즘
+	
+	조건에 맞는 식당만 검색하기 위해 체크박스와 라디오버튼 배치
+		<form class="form-horizontal col-sm-12" method="post">
+			<legend><h3 align="center">LUNCH! <small>식당 뽑기</small></h3></legend>
+			<div class="form-group">
+				<label for="foodstyle" class="col-sm-2 control-label">음식 종류</label>
+				<div class="col-sm-10">
+					<label class="radio-inline">
+						<input type="radio" name="foodstyle" id="foodstyle1" value="한식" checked>한식
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="foodstyle" id="foodstyle2" value="일식">일식
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="foodstyle" id="foodstyle3" value="중식">중식
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="foodstyle" id="foodstyle4" value="양식">양식
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="foodstyle" id="foodstyle5" value="분식">분식
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="foodstyle" id="foodstyle6" value="기타">기타
+					</label>
+				</div>
+			</div>
+			<div class="form-group">
+				<label for="distance" class="col-sm-2 control-label">거리(이하)</label>
+				<div class="col-sm-10">
+					<label class="radio-inline">
+						<input type="radio" name="distance" id="distance5" value="1" checked>멂
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="distance" id="distance4" value="2">멀지는 않음
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="distance" id="distance3" value="3">적당함
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="distance" id="distance2" value="4">가까운 편
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="distance" id="distance1" value="5">가까움
+					</label>
+				</div>
+			</div>
+			<div class="form-group">
+				<label for="tasty" class="col-sm-2 control-label">맛(이하)</label>
+				<div class="col-sm-10">
+					<label class="radio-inline">
+						<input type="radio" name="tasty" id="tasty1" value="1" checked>으.. 노맛
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="tasty" id="tasty2" value="2">음? 이건 무슨맛..?
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="tasty" id="tasty3" value="3">흠 그냥 그렇네
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="tasty" id="tasty4" value="4">오 나쁘지 않은데?
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="tasty" id="tasty5" value="5">헐 대박 존맛탱
+					</label>
+				</div>
+			</div>
+			<div class="form-group">
+				<label for="price" class="col-sm-2 control-label">가격대(이하)</label>
+				<div class="col-sm-10">
+					<label class="radio-inline">
+						<input type="radio" name="price" id="price1" value="1" checked>헐 넘 비쌈
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="price" id="price2" value="2">비싸긴 하네
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="price" id="price3" value="3">적당적당
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="price" id="price4" value="4">싼편
+					</label>
+					<label class="radio-inline">
+						<input type="radio" name="price" id="price5" value="5">오 싸다!
+					</label>
+				</div>
+			</div>
+			<div class="form-group">
+				<div class="col-sm-12" style="text-align:center; margin-top:10px;">
+					<a class="btn btn-success" href="javascript:list()" role="button">식당 목록보기</a>
+					<a class="btn btn-primary" href="javascript:select()" role="button">식당 뽑기</a>
+				</div>
+			</div>
+		</form>
+
+	조건에 맞는 식당만 찾아오는 sql
+		<!-- 조건 검색 -->
+		<select id="select" parameterType="Restaurant" resultType="Restaurant">
+			select * from restaurant
+			where membercode = #{membercode} and foodstyle = #{foodstyle} and distance >= #{distance} and tasty >= #{tasty} and price >= #{price}
+		</select>
+		
+	Dao에서 조건에 맞는 식당만 찾아오기
+		public List<Restaurant> select(Restaurant restaurant){
+			return sqlSession.selectList("restaurant.select", restaurant);
+		}
+		
+	Service 인터페이스에서 메소드 선언
+		public List<Restaurant> select(HttpServletRequest request);
+		
+	ServiceImpl 에서 조건에 맞는 식당 찾아오기
+		@Override
+		public List<Restaurant> select(HttpServletRequest request) {
+			Restaurant restaurant = new Restaurant();
+			
+			String membercode = request.getParameter("membercode");
+			String foodstyle = request.getParameter("foodstyle");
+			int distance = Integer.parseInt(request.getParameter("distance"));
+			int tasty = Integer.parseInt(request.getParameter("tasty"));
+			int price = Integer.parseInt(request.getParameter("price"));
+			
+			restaurant.setMembercode(membercode);
+			restaurant.setFoodstyle(foodstyle);
+			restaurant.setDistance(distance);
+			restaurant.setTasty(tasty);
+			restaurant.setPrice(price);
+			
+			return restaurantDao.select(restaurant);
+		}
+	
+	JSONController에서 조건에 맞는 식당목록 가져오기
+		@RequestMapping(value="lunch/select", method=RequestMethod.POST)
+		public Map<String, Object> select(HttpServletRequest request, Model model){
+			Map<String, Object> map = new HashMap<>();
+			List<Restaurant> list = restaurantServivce.select(request);
+			map.put("list", list);
+			model.addAttribute("map", map);
+			return map;
+		}
+		
+	스크립트의 select() 함수에서 리스트가 있을 때 랜덤으로 출력
+		출력할 영역
+			<div id="result" style="display:none;">
+				<table class="table table-bordered">
+					<tr>
+						<th style="width:15%">식당 이름</th>
+						<th style="width:10%">거리</th>
+						<th style="width:20%">맛</th>
+						<th style="width:10%">가격대</th>
+						<th style="width:10%">총점</th>
+						<th style="width:35%">설명</th>
+					</tr>
+					<tr>
+						<td id="rstname"></td>
+						<td id="distance"></td>
+						<td id="tasty"></td>
+						<td id="price"></td>
+						<td id="totalscore"></td>
+						<td id="description"></td>
+					</tr>
+				</table>
+			</div>
+			
+		출력할 스크립트
+			// 식당 뽑기를 클릭하면 호출될 함수
+			function select(){
+				document.getElementById("list").style.display = "none";
+				foodstyle = $("input[name='foodstyle']:checked").val();
+				distance = $("input[name='distance']:checked").val();
+				tasty = $("input[name='tasty']:checked").val();
+				price = $("input[name='price']:checked").val();
+				// console.log(distance +" " +tasty + " " +price)
+				// ajax를 이용해 조건에 맞는 식당 리스트 불러오기
+				$.ajax({
+					url: "select",
+					type : "POST",
+					data : {
+						"membercode":"${member.membercode}",
+						"foodstyle": foodstyle,
+						"distance" : distance, 
+						"tasty" : tasty,
+						"price" : price	
+						},
+					dataType : "json",
+					success: function(data){
+						if(listcheck(data) == true){
+							//console.log(data.list)
+							// data.list에 저장된 배열에서 totalscore를 기반으로 랜덤하게 뽑기
+							rstlist = data.list;
+							random(rstlist);	
+						};
+					}
+				});
+			}
+			
+			// 식당 뽑기를 클릭했을 때 가져온 식당리스트가 있으면 호출되는 함수
+			function random(rstlist){
+				// 가져온 리스트 중에 랜덤하게 출력
+				// totalscore를 기반으로 뽑힐 확률 조정
+				// totalscore*10 개 만큼씩 배열에 넣어서 랜덤으로 뽑기
+				scorelist = new Array();
+				for(i=0; i<rstlist.length; i++){
+					for(j=0; j<rstlist[i].totalscore*10;j++){
+						scorelist.push(rstlist[i]);
+					}
+				}
+				//console.log(scorelist);
+				
+				idx = Math.floor(Math.random() * scorelist.length);
+				// console.log(idx)
+				//console.log(scorelist[idx]);
+				document.getElementById("result").style.display = "block";
+				document.getElementById("rstname").innerText = scorelist[idx].rstname;
+				// distance, tasty, price는 변환해서 출력;
+				switch(scorelist[idx].distance){
+				case 1: 
+					distance = "멂";
+					break;
+				case 2:
+					distance = "멀지는 않음";
+					break;
+				case 3:
+					distance = "적당함";
+					break;
+				case 4:
+					distance = "가까운 편";
+					break;
+				case 5:
+					distance = "가까움";
+					break;
+				}
+				document.getElementById("distance").innerText = distance;
+				switch(scorelist[idx].tasty){
+				case 1:
+					tasty = "으 노맛";
+					break;
+				case 2:
+					tasty = "음? 이건 무슨맛?";
+					break;
+				case 3:
+					tasty = "흠 그냥 그렇네";
+					break;
+				case 4:
+					tasty = "오 나쁘지 않은데";
+					break;
+				case 5:
+					tasty = "헐 대박 존맛탱";
+					break;
+				}
+				document.getElementById("tasty").innerText = tasty;
+				switch(scorelist[idx].price){
+				case 1:
+					price = "헐 넘 비쌈";
+					break;
+				case 2:
+					price = "비싸긴 하네";
+					break;
+				case 3:
+					price = "적당적당";
+					break;
+				case 4:
+					price = "싼편";
+					break;
+				case 5:
+					price = "오 싸다!";
+					break;
+				}
+				document.getElementById("price").innerText = price;
+				document.getElementById("description").innerText = scorelist[idx].description;
+				document.getElementById("totalscore").innerText = scorelist[idx].totalscore;
+			}

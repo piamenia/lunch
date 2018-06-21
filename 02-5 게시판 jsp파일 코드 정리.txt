@@ -1,0 +1,742 @@
+jsp파일 정리
+	중복된 코드나 위치, 디자인 등을 생각해서 코드 정리
+	
+header.jsp
+
+	<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+	<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+	<!DOCTYPE html>
+	<html>
+	<head>
+	<meta charset="UTF-8">
+	<title>Spring MVC Board</title>
+	<!-- 현재 기기의 너비에 맞춰서 출력, 기본크기 1배, 최대 크기 1배, 확대축소 못하게
+		모바일 웹 애플리케이션에서 주로 이용하는 옵션 -->
+	<meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
+	<!-- IE9 이하 버전에서 HTML5의 시멘틱 태그를 사용하기 위한 설정 -->
+	<!--[if lt IE 9]>
+			<script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+			<script src="https://oss.maxcdn.comrespond/1.4.2respond.min.js"></script>
+		<![endif]-->
+	<!-- jQuery설정 -->
+	<script type="text/javascript" src="${pageContext.request.contextPath}/resources/jquery/jquery.1.12.4.min.js"></script>
+	<script type="text/javascript" src="${pageContext.request.contextPath}/resources/bootstrap/js/bootstrap.min.js"></script>
+	<script type="text/javascript" src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+	<!-- css 설정 -->
+	<link rel="stylesheet" type="text/css" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" />
+	<link rel="stylesheet" type="text/css" href="${pageContext.request.contextPath}/resources/bootstrap/css/bootstrap.min.css" />
+	</head>
+	<body class="skin-blue sidebar-mini" style="margin:auto 2%;">
+		<div class="wrapper">
+			<header class="main-header">
+				<div class="page-header">
+					<h1><a href="${pageContext.request.contextPath }" style="color:black; text-decoration:none;">LUNCH!</a></h1>
+				</div>
+			</header>
+		</div>
+		<aside class="main-sidebar" style="margin-bottom:20px">
+			<section class="sidebar">
+				<ul class="nav nav-tabs">
+					<li role="presentation" id="main" class="active"><a href="/lunch">메인</a></li>
+					<li role="presentation" id="select"><a href="${pageContext.request.contextPath }/select">식당뽑기</a></li>
+					<li role="presentation" id="board"><a href="${pageContext.request.contextPath }/board/list?page=1">게시판</a></li>
+					<c:if test="${member != null }">
+						<li role="presentation" style="float:right"><a href="${pageContext.request.contextPath}/member/logout">로그아웃</a></li>
+						<li role="presentation" style="float:right"><a>${member.nickname }님</a> </li>
+						<li role="presentation" style="float:right">
+							<a id="location"></a>
+							<script>
+							// 현재 접속한 브라우저의 위도와 경로
+							navigator.geolocation.getCurrentPosition(function(position){
+								lat = position.coords.latitude;
+								lng = position.coords.longitude;
+								//console.log(lat+", "+lng);
+								// 위도와 경도를 하나의 문자열로 만들기
+								loc = lat + "-" + lng;
+								// alert(loc);
+								// address라는 URL에 loc를 파라미터로 넘겨서 json 타입으로 데이터를 받아오는 ajax요청
+								$.ajax({
+									url:"/lunch/location",
+									data:{"loc":loc},
+									dataType:"json",
+									success:function(data){
+										document.getElementById("location").innerHTML =
+											data.location.split(" ")[0] + " "
+											+ data.location.split(" ")[1] + " "
+											+ data.location.split(" ")[2];
+										// console.log(data)
+									}
+								})
+							});
+							</script>
+						</li>
+					</c:if>
+					<c:if test="${member == null }">
+						<li role="presentation" id="register" style="float:right"><a href="${pageContext.request.contextPath}/member/register">회원가입</a></li>
+						<li role="presentation" id="login" style="float:right"><a href="${pageContext.request.contextPath}/member/login">로그인</a></li>
+					</c:if>
+				</ul>
+				<script>
+					$(function(){
+						pathname = jQuery(location).attr('pathname');
+						if(pathname.indexOf('board') >= 0){
+							$("#board").addClass('active').siblings().removeClass('active');
+						}else if(pathname.indexOf('select') >= 0){
+							$("#select").addClass('active').siblings().removeClass('active');
+						}
+					});
+				</script>
+			</section>
+		</aside>
+		<div>
+	
+
+footer.jsp
+
+	<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+	</div>
+	<footer class="main-footer" style="margin-top: 20px">
+		<div class="pull-right hidden-xs">
+			<b>Version</b> 1.0
+		</div>
+		<strong>Copyright &copy;<a href="${pageContext.request.contextPath}">LUNCH</a></strong> All rights reserved.
+	</footer>
+	</body>
+	</html>
+
+
+
+
+home.jsp
+
+	<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+	<%@ include file="include/header.jsp" %>
+	<div style="text-align:center">
+		<img src="./resources/img/main_img.jpg">
+	</div>
+	<!-- 메시지 대화상자 -->
+	<c:if test="${msg != null}">
+	<div id="dialog-message" title="" style="display:none">
+		<p>
+			<span class="ui-icon ui-icon-circle-check"
+				style="float: left; margin: 0 7px 50px 0;"></span> ${msg}
+		</p>
+	</div>
+	<script>
+		$(function() {
+			$("#dialog-message").dialog({
+				modal : true,
+				buttons : {
+					Ok : function() {
+						$(this).dialog("close");
+					}
+				}
+			});
+		});
+	</script>
+	</c:if>
+	<%@ include file="include/footer.jsp" %>
+	
+	
+register.jsp
+
+	<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+	<%@ include file="../include/header.jsp" %>
+	<div class="container">
+		<div class="row">
+			<div class="col-md-4"></div>
+			<div class="col-md-4">
+				<div class="login-box well">
+					<form accept-charset="UTF-8" role="form" id="registerform" method="post" onsubmit="return check()">
+						<legend>회원 가입</legend>
+						<div style='color: red'>${msg}</div>
+						<div class="form-group">
+							<label for="email">이메일</label>
+							<input type="email" name="email" id="email"
+							onblur="confirmId()" class="form-control"
+							placeholder="이메일"/>
+							<div id="emaildiv"></div>
+							<script>
+								document.getElementById("email").focus();
+							</script>
+						</div>
+						<div class="form-group">
+							<label for="pw">비밀번호</label>
+							<input type="password" name="pw" id="pw"
+							class="form-control" 
+							placeholder="비밀번호"/>
+							<input type="password" id="pwconfirm"
+							class="form-control"  
+							placeholder="비밀번호 확인"/>
+							<div id="pwdiv"></div>
+						</div>
+						<div class="form-group">
+							<label for="nickname">별명</label>
+							<input type="text" name="nickname" id="nickname"
+							class="form-control" placeholder="닉네임은 문자 2자 이상입니다." />
+							<div id="nicknamediv"></div>
+						</div>
+						<div class="form-group">
+							<input type="submit" value="회원가입" class="btn btn-warning btn-block m-t-md" />
+							<input type="button" value="메인으로" class="btn btn-success btn-block m-t-md"
+							onclick="javascript:window.location='../'">
+						</div>
+					</form>
+				</div>
+			</div>
+			<div class="col-md-4"></div>
+		</div>
+	</div>
+	<script>
+	//이메일 중복검사 통과여부를 저장할 변수
+	//전송버튼을 눌렀을 때 이 값이 false 면 전송하지 않을것
+	var emailcheck = false;
+
+	//이메일 중복체크 함수
+	function confirmId(){
+		email = document.getElementById("email").value;
+		emaildiv = document.getElementById("emaildiv");
+		if(email.trim() == ""){
+			emaildiv.innerHTML = "이메일을 입력해주세요.";
+			emaildiv.style.color = 'red';
+			document.getElementById("email").focus();
+			emailcheck = false;
+		} else {
+			$.ajax({
+				url:'emailcheck',
+				data:{'email':email},
+				dataType:'json',
+				success:function(data){
+					//alert(data);
+					if(data.result==true){
+						// 이메일이 중복되지 않은 경우
+						emailcheck = true;
+						emaildiv.innerHTML = "사용 가능한 이메일입니다.";
+						emaildiv.style.color = 'blue';
+					}else{
+						// 이메일이 중복된 경우
+						emaildiv.innerHTML = "중복된 이메일입니다.";
+						emaildiv.style.color = 'red';
+						emailcheck = false;
+					}
+				}
+			});
+		}
+	}
+
+	//form에서 submit 했을 때 호출되는 함수
+	//false를 리턴하면 서버로 전송되지 않음
+	function check(){
+		// emailcheck의 값이 false면 서버로 전송하지 않음
+		if(emailcheck == false){
+			document.getElementById("emaildiv").innerHTML = "이메일 중복검사를 통과하지 못했습니다.";
+			document.getElementById("emaildiv").styel.color = "red";
+			return false;
+		}
+		// 비밀번호에 입력한 값과 비밀번호 확인 란에 입력한 값이 일치하지 않으면 전송하지 않음
+		pw = document.getElementById("pw").value;
+		pwconfirm = document.getElementById("pwconfirm").value;
+		pwdiv = document.getElementById("pwdiv");
+		if(pw != pwconfirm){
+			document.getElementById("pw").value = "";
+			document.getElementById("pwconfirm").value = "";
+			pwdiv.style.color = 'red';
+			pwdiv.innerHTML = "비밀번호가 일치하지 않습니다!";
+			document.getElementById("pw").focus();
+			return false;
+		}
+		// 비밀번호는 숫자, 영문자, 특수문자 1개이상으로 8자 이상
+		// 정규식 이용
+		p1 = /[0-9]/;
+		p2 = /[a-zA-Z]/;
+		p3 = /[~!@#$%^&*();:.]/;
+		
+		if(!p1.test(pw) || !p2.test(pw) || !p3.test(pw) || pw.length<8){
+			document.getElementById("pw").value = "";
+			document.getElementById("pwconfirm").value = "";
+			pwdiv.style.color = 'red';
+			pwdiv.innerHTML = 
+				"비밀번호는 8자 이상이어야 하고, 숫자, 영문자, 특수문자를 포함해야합니다."
+				+"<br>사용 가능한 특수문자: ~!@#$%^&*();:.";
+			document.getElementById("pw").focus();
+			return false;
+		}
+		
+		// 닉네임은 2자 이상 한글, 영문자, 숫자로 구성
+		nickname = document.getElementById("nickname").value;
+		nicknamediv = document.getElementById("nicknamediv"); 
+		n = /[0-9a-zA-Z가-힣]/;
+		if(!n.test(nickname) || nickname.length<2){
+			document.getElementById("nickname").focus();
+			nicknamediv.style.color="red";
+			nicknamediv.innerHTML =
+				"닉네임은 2자 이상이어야하고<br>한글, 영문자, 숫자만 사용할 수 있습니다.";
+			return false;
+		}
+	}
+	</script>
+	<%@ include file="../include/footer.jsp" %>
+	
+
+login.jsp
+
+	<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+	<%@ include file="../include/header.jsp" %>
+	<div class="container">
+		<div class="row">
+			<div class="col-md-4"></div>
+			<div class="col-md-4">
+				<div class="login-box well">
+					<form accept-charset="UTF-8" role="form" method="post" action="login">
+						<legend>로그인</legend>
+						<div style='color: red'>${msg}</div>
+						<div class="form-group">
+							<label for="email">이메일</label>
+							<input type="email" name="email" id="email" required="required"
+							placeholder="이메일을 입력하세요" class="form-control" />
+							<script>
+								document.getElementById("email").focus();
+							</script>
+						</div>
+						<div class="form-group">
+							<label for="pw">비밀번호</label>
+							<input type="password" name="pw" id="pw"
+							placeholder="비밀번호를 입력하세요" class="form-control" />
+						</div>
+						<div class="form-group">
+							<input type="submit"
+								class="btn btn-primary btn-login-submit btn-block m-t-md"
+								value="로그인" />
+						</div>
+						<div class="form-group">
+							<a href="register" class="btn btn-warning btn-block m-t-md">회원가입</a>
+						</div>
+						<div class="form-group">
+							<a href="../" class="btn btn-success btn-block m-t-md">메인으로</a>
+						</div>
+					</form>
+				</div>
+			</div>
+			<div class="col-md-4"></div>
+		</div>
+	</div>
+	<%@ include file="../include/footer.jsp" %>
+
+
+list.jsp
+
+	<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+	<%@include file="../include/header.jsp"%>
+	<div class="box">
+		<!-- 페이지당 출력개수 설정하는 select -->
+		<div class="box-header with-border">
+			<span>
+				<select id="count" class="form-control" style="width:20%; display:inline-block">
+					<option value="5" <c:out value="${map.pageMaker.criteria.perPage==5?'selected':''}"/>>
+						5개씩 보기
+					</option>
+					<option value="10" <c:out value="${map.pageMaker.criteria.perPage==10?'selected':''}"/>>
+						10개씩 보기
+					</option>
+					<option value="15" <c:out value="${map.pageMaker.criteria.perPage==15?'selected':''}"/>>
+						15개씩 보기
+					</option>
+					<option value="20" <c:out value="${map.pageMaker.criteria.perPage==20?'selected':''}"/>>
+						20개씩 보기
+					</option>
+				</select>
+			</span>
+			<span style="float:right; width:60%; text-align:right">
+				<!-- 검색폼 -->
+				<span>검색</span>
+				<select name="searchType" id="searchType" class="form-control" style="display:inline; width:25%">
+					<option value="n"
+					 <c:out value="${map.pageMaker.criteria.searchType==null?'selected':'' }"/>
+					>--</option>
+					<option value="t"
+					 <c:out value="${map.pageMaker.criteria.searchType==t?'selected':'' }"/>
+					>제목</option>
+					<option value="c"
+					 <c:out value="${map.pageMaker.criteria.searchType==c?'selected':'' }"/>
+					>내용</option>
+					<option value="tc"
+					 <c:out value="${map.pageMaker.criteria.searchType==tc?'selected':'' }"/>
+					>제목+내용</option>
+				</select>
+				<input type="text" name="keyword" id="keyword" value="${map.pageMaker.criteria.keyword }" class="form-control" style="display:inline; width:30%"/>
+				<input type="button" value="검색" id="searchbtn" class="btn btn-primary form-control" style="display:inline; width:auto">
+			</span>
+		</div>
+		<div class="box-body" style="margin-top:10px">
+			<table class="table table-bordered table-hover">
+				<tr>
+					<th width="7%">글번호</th>
+					<th width="67%">제목</th>
+					<th width="8%">작성자</th>
+					<th width="10%">작성일</th>
+					<th width="8%">조회수</th>
+				</tr>
+				<c:forEach var="board" items="${map.list }">
+					<tr>
+						<td align="center">${board.bdcode}</td>
+						<td>
+							<a href="detail?bdcode=${board.bdcode}&page=${map.pageMaker.criteria.page}&perPage=${map.pageMaker.criteria.perPage}&searchType=${map.pageMaker.criteria.searchType}&keyworkd=${map.pageMaker.criteria.keyword}"
+							style="display:block"
+							>${board.subject}
+							<span class="badge bg-blue">[${board.rpcnt }]</span>
+							<c:if test="${board.rpcnt >= 5 }">
+								<img src="../resources/img/hot_icon.png" height="25px">
+							</c:if>
+							</a>
+						</td>
+						<td align="center">${board.nickname}</td>
+						<td align="center">${board.dispdate}</td>
+						<td align="right">${board.readcnt}</td>
+					</tr>
+				</c:forEach>
+			</table>
+		</div>
+		<div class="box-footer">
+			<div class="text-center">
+				<button id='mainBtn' class="btn btn-primary">메인으로</button>
+				<c:if test="${member!=null }">
+					<button id='write' class="btn btn-success">글쓰기</button>							
+				</c:if>
+				<!-- 페이지 번호 출력영역 -->
+				<div class="box-footer text-center">
+					<ul class="pagination">
+						<c:if test="${map.pageMaker.totalCount > 0 }">
+							<!-- 이전링크 -->
+							<c:if test="${map.pageMaker.prev }">
+								<li></li>
+							</c:if>
+							<!-- 페이지번호 -->
+							<c:forEach var="idx" begin="${map.pageMaker.startPage }" end="${map.pageMaker.endPage }">
+								<li
+								<c:out value="${map.pageMaker.criteria.page==idx?'class=active':'' }"/>
+								><a href="list?page=${idx }&perPage=${map.pageMaker.criteria.perPage}&searchType=${map.pageMaker.criteria.searchType}&keyworkd=${map.pageMaker.criteria.keyword}">${idx }</a></li>
+							</c:forEach>
+							<!-- 다음 링크 -->
+							<c:if test="${map.pageMaker.next }">
+								<li><a href="list?page=${map.pageMaker.endPage+1}&perPage=${map.pageMaker.criteria.perPage}&searchType=${map.pageMaker.criteria.searchType}&keyworkd=${map.pageMaker.criteria.keyword}">다음</a></li>
+							</c:if>
+						</c:if>
+					</ul>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script>
+		$(function() {
+			$('#mainBtn').on("click", function(event) {
+				location.href = "../";
+			});
+			$("#write").on("click", function(){
+				location.href = "write";
+			});
+		});
+		// 출력개수 선택했을 때
+		document.getElementById("count").addEventListener("change",function(){
+			location.href = 'list?page=${map.pageMaker.criteria.page}&perPage=' + this.value + "&searchType=" + searchType + "&keyworkd=" + keyword;
+		});
+		// 검색버튼 눌렀을 때
+		document.getElementById("searchbtn").addEventListener("click",function(){
+			// select의 선택된 항목 찾아오기
+			// 선택된 행번호
+			x = document.getElementById("searchType").selectedIndex;
+			// select의 모든 값을 배열로 가져오기
+			y = document.getElementById("searchType").options;
+			// keyword에 입력된 값
+			keyword = document.getElementById("keyword").value;
+			
+			location.href = "list?page=1&perPageNum=${map.pageMaker.criteria.perPage}&searchType=" + y[x].value + "&keyword=" + keyword;
+		});
+	</script>
+	<style>
+	.table th {
+		text-align: center;
+	}
+	</style>
+
+	<!-- 메시지 대화상자 -->
+	<c:if test="${msg != null}">
+	<div id="dialog-message" title="" style="display:none">
+		<p>
+			<span class="ui-icon ui-icon-circle-check"
+				style="float: left; margin: 0 7px 50px 0;"></span> ${msg}
+		</p>
+	</div>
+	<script>
+		$(function() {
+			$("#dialog-message").dialog({
+				modal : true,
+				buttons : {
+					Ok : function() {
+						$(this).dialog("close");
+					}
+				}
+			});
+		});
+	</script>
+	</c:if>
+	<%@include file="../include/footer.jsp"%>
+	
+	
+detail.jsp
+
+	<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+	<%@ include file="../include/header.jsp"%>
+	<section class="content">
+		<div class="box">
+			<div class="box-body">
+				<div class="form-group">
+					<label>제목</label> <input type="text" name="subject"
+						class="form-control" value="${board.subject}" readonly="readonly" />
+				</div>
+				<div class="form-group">
+					<label>내용</label>
+					<textarea name="content" rows="5" readonly="readonly"
+						class="form-control">${board.content}</textarea>
+				</div>
+				<div class="form-group">
+					<label>작성자</label> <input type="text" class="form-control"
+						value="${board.nickname}" readonly="readonly" />
+				</div>
+			</div>
+			<div id="replydisp"></div>
+			<div class="box-footer">
+				<button class="btn btn-success" id="mainbtn">메인</button>
+				<c:if test="${member.email == board.email}">
+					<button class="btn btn-warning" id="updatebtn">수정</button>
+					<button class="btn btn-danger" id="deletebtn">삭제</button>
+				</c:if>
+				<button class="btn btn-info" id="writereply">댓글</button>
+				<button class="btn btn-primary" id="listbtn">목록</button>
+			</div>
+		</div>
+	</section>
+	<script>
+		//메인 버튼을 눌렀을 때 처리
+		document.getElementById("mainbtn").addEventListener("click",function() {
+					location.href = "../";
+				});
+		//목록 버튼을 눌렀을 때 처리
+		document.getElementById("listbtn").addEventListener("click",function() {
+					location.href = "list?page=${criteria.page}&perPage=${criteria.perPage}";
+				});
+		<c:if test = "${member.email == board.email}">
+			//삭제 버튼을 눌렀을 때 처리
+			document.getElementById("deletebtn").addEventListener("click",function() {
+				$(function(){
+					$("#dialog-confirm").dialog({
+						resizable : false,
+						height : "auto",
+						width : 400,
+						modal : true,
+						buttons : {
+							"삭제" : function() {
+								$(this).dialog("close");
+								location.href = "delete?bdcode=${board.bdcode}&page=${criteria.page}&perPage=${criteria.perPage}";
+							},
+							"취소" : function() {
+								$(this).dialog("close");
+							}
+						}
+					});
+				});
+			});
+			//수정 버튼을 눌렀을 때 처리
+			document.getElementById("updatebtn").addEventListener("click",function() {
+						location.href = "update?bdcode=${board.bdcode}&page=${criteria.page}&perPage=${criteria.perPage}";
+					});
+		</c:if>
+		// 댓글 버튼을 눌렀을 때 처리
+		document.getElementById("writereply").addEventListener("click",function(){
+			$("#replyform").dialog({
+				resizable : false,
+				height : "auto",
+				width : 400,
+				modal : true,
+				open : function(){
+					$("#rptext").focus();
+				},
+				buttons : {
+					"저장" : function(){
+						$(this).dialog("close");
+						rptext = $("#rptext").val();
+						$.ajax({
+							url : "../reply/write",
+							data : {
+								"bdcode" : "${board.bdcode}",
+								"email" : "${member.email}",
+								"nickname" : "${member.nickname}",
+								"rptext" : rptext
+							},
+							dataType : "json",
+							success : function(data){
+								getReply();
+							}
+						})
+					},
+					"취소" : function(){
+						$(this).dialog("close");
+						$("#rptext").val("");
+					}
+				}
+			});
+		});
+		// 댓글이 있다면 댓글출력영역에 댓글출력
+		email = "${member.email}";
+		<c:if test="${board.rpcnt > 0}">
+			$(function(){				
+				// 댓글을 썼을 때 다시 호출해야하기 때문에 함수를 만들어서 호출
+				getReply();
+			});
+		</c:if>
+		// 댓글 관련 함수
+		function getReply(){
+			$.ajax({
+				url:"../reply/rplist",
+				data:{"bdcode" : "${board.bdcode}"},
+				dataType:"json",
+				success:function(data){
+					// 출력하는 함수 호출
+					// 하나의 영역에서 코드가 너무 길어지지 않도록 함수를 다시 호출
+					display(data);
+				}
+			});
+		};
+		function display(data){
+			disp = "";
+			$(data).each(function(idx,item){
+				disp += "<div style='height:46px; border-top:1px solid grey; padding: 5px 0;'>";
+				disp += "<label style='height:36px; line-height:36px;'>";
+				disp += item.nickname + " : " + item.rptext;
+				disp += "</label>";
+				if(email==item.email){
+					// 삭제버튼 생성
+					// 삭제버튼이 여러개 될 수 있기 때문에
+					// 버튼의 id를 구분할 수 있는 값으로 만들면 나중에 id로 구분할 수 있음
+					// 여기에서는 id를 del댓글번호 가 됨
+					disp += "<button class='btn btn-danger' ";
+					disp += "id='del"+item.rpcode+"'";
+					disp += "style='float:right; margin-left:5px;' onclick='del(this)'>";
+					disp += "댓글삭제"
+					disp += "</button>";
+					// 댓글수정 버튼
+					disp += "<button class='btn btn-warning' ";
+					disp += "id='mod"+item.rpcode+"'";
+					disp += "style='float:right' onclick='mod(this)'>";
+					disp += "댓글수정"
+					disp += "</button>";
+				}
+				disp += "</div>";
+			});
+			// 출력영역에 출력
+			document.getElementById("replydisp").innerHTML = disp;
+		};
+		// 댓글삭제 버튼 눌렀을 때 호출되는 함수
+		function del(btn){
+			// 댓글번호
+			id = btn.id;
+			rpcode = id.split("del")[1];
+			$("#dialog-confirm").dialog({
+				resizable : false,
+				height : "auto",
+				width : 400,
+				modal : true,
+				buttons : {
+					"삭제" : function() {
+						$(this).dialog("close");
+						$.ajax({
+							url:"../reply/delete",
+							data:{"rpcode":rpcode},
+							dataType:"json",
+							success:function(){
+								getReply();
+							}
+						});
+					},
+					"취소" : function() {
+						$(this).dialog("close");
+					}
+				}
+			});
+		};
+		// 댓글수정 버튼 눌렀을 때 호출되는 함수
+		function mod(btn){
+			// 댓글번호
+			id = btn.id;
+			rpcode = id.split("mod")[1];
+			$("#replyform").dialog({
+				resizable : false,
+				height : "auto",
+				width : 400,
+				modal : true,
+				open : function(){
+					$("#rptext").focus();
+				},
+				buttons : {
+					"수정" : function(){
+						$(this).dialog("close");
+						rptext = $("#rptext").val();
+						$.ajax({
+							url : "../reply/update",
+							data : {
+								"rpcode" : rpcode,
+								"rptext" : rptext
+							},
+							dataType : "json",
+							success : function(data){
+								getReply();
+								$("#rptext").val("");
+							}
+						});
+					},
+					"취소" : function(){
+						$(this).dialog("close");
+						$("#rptext").val("");
+					}
+				}
+			});
+		};
+	</script>
+
+	<!-- 삭제 대화상자 -->
+	<div id="dialog-confirm" title="삭제 확인" style="display:none;">
+		<p>
+			<span class="ui-icon ui-icon-alert" style="float: left; margin: 12px 12px 20px 0;"></span>
+			한번 삭제한 자료는 복구할 수 없습니다. 정말 삭제하시겠습니까?
+		</p>
+	</div>
+
+	<!-- 댓글쓰기 대화상자 -->
+	<div class="box-body" style="display:none;" id="replyform">
+		<label for="nickname">작성자</label>
+		<input class="form-control" type="text" id="nickname" value="${member.nickname }" readonly="readonly"/>
+		<label for="rptext">댓글내용</label>
+		<input class="form-control" type="text" id="rptext" placeholder="댓글 내용을 작성하세요."/>
+	</div>
+
+	<!-- 메시지 대화상자 -->
+	<c:if test="${msg != null}">
+	<div id="dialog-message" title="" style="display:none">
+		<p>
+			<span class="ui-icon ui-icon-circle-check"
+				style="float: left; margin: 0 7px 50px 0;"></span> ${msg}
+		</p>
+	</div>
+	<script>
+		$(function() {
+			$("#dialog-message").dialog({
+				modal : true,
+				buttons : {
+					Ok : function() {
+						$(this).dialog("close");
+					}
+				}
+			});
+		});
+	</script>
+	</c:if>
+	<%@ include file="../include/footer.jsp"%>
